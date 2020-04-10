@@ -14,11 +14,12 @@ class AutonAgentDelta_Mode:
         self.height_above = 0.2
         self.obs = []
         self.obj_poses = []
+        self.on_target = False
 
     def act(self, obs, obj_poses):
         self.obs = obs
         self.obj_poses = obj_poses
-        cracker_loc = self.obj_poses['crackers']
+        cracker_loc = self.obj_poses['sugar']
         goal_loc = cracker_loc.copy()
 
         if np.linalg.norm(goal_loc[:3] - obs.gripper_pose[:3]) < self.height_above + .01:
@@ -26,8 +27,19 @@ class AutonAgentDelta_Mode:
         else:
             self.reached_goal = False
             
-        # Position Control
-        delta_pos = self.get_delta_pos(goal_loc[:3])
+        ####### Position Control #############
+        if self.reached_goal:
+            t_pos     = goal_loc[:3]
+            t_pos[2] += 0.05
+        else:
+            t_pos     = goal_loc[:3]
+            t_pos[2] += self.height_above
+
+        if np.linalg.norm(t_pos - obs.gripper_pose[:3]) < .01:
+            self.on_target = True
+
+        
+        delta_pos = self.get_delta_pos(t_pos)
 
 
         ######## Orientation Control ##########
@@ -38,13 +50,14 @@ class AutonAgentDelta_Mode:
 
 
         ####### Gripper Control ############
-        gripper_pos = [1] ### Open: 1, Closed: 0
+        if self.on_target: gripper_pos = [0]
+        else: gripper_pos = [1] ### Open: 1, Closed: 0
+
         return delta_pos + delta_quat + gripper_pos
 
 
     def get_delta_pos(self, target):
         ############ Position Control ########
-        target[2] += self.height_above
         delta_pos = list(target[:3] - self.obs.gripper_pose[:3])
 
         dist = np.linalg.norm(delta_pos)
@@ -62,16 +75,6 @@ class AutonAgentDelta_Mode:
         delta_rot = my_rot * t_rot.inv()
     
         delta_quat = list(delta_rot.as_quat())
-
-        # my_quat = quaternion(my_qt[0], my_qt[1], my_qt[2], my_qt[3])
-        # t_quat  = quaternion(t_qt[0], t_qt[1], t_qt[2], t_qt[3])
-        # delta_quat = my_quat - t_quat
-
-        # if abs(delta_quat.w) > self.quat_step:
-        #     delta_quat.w = self.quat_step * np.sign(delta_quat.w)
-
-        
-        # delta_quat = list(delta_quat.as_float_array())
 
         return delta_quat  
 

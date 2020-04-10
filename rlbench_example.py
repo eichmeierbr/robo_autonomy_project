@@ -92,6 +92,7 @@ if __name__ == "__main__":
         rgb = obs.wrist_rgb
         depth = obs.wrist_depth
         mask = obs.wrist_mask
+        has_object = len(task._robot.gripper._grasped_objects) > 0
 
         # Perform action and step simulation
         # action = agent.act(obs)
