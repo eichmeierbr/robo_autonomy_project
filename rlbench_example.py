@@ -8,7 +8,7 @@ from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
 from rlbench.tasks import *
 
-from AutonAgent import AutonAgentDelta_Mode
+from AutonAgent import *
 
 def skew(x):
     return np.array([[0, -x[2], x[1]],
@@ -69,14 +69,14 @@ class NoisyObjectPoseSensor:
 
 
 if __name__ == "__main__":
-    action_mode = ActionMode(ArmActionMode.DELTA_EE_POSE) # See rlbench/action_modes.py for other action modes
-    # action_mode = ActionMode(ArmActionMode.ABS_EE_POSE) # See rlbench/action_modes.py for other action modes
+    # action_mode = ActionMode(ArmActionMode.DELTA_EE_POSE_PLAN) # See rlbench/action_modes.py for other action modes
+    action_mode = ActionMode(ArmActionMode.ABS_EE_POSE_PLAN) # See rlbench/action_modes.py for other action modes
 
     env = Environment(action_mode, '', ObservationConfig(), False)
     task = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
     
     # agent = RandomAgent()
-    agent = AutonAgentDelta_Mode()
+    agent = AutonAgentAbsolute_Mode()
     
     obj_pose_sensor = NoisyObjectPoseSensor(env)
    
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         rgb = obs.wrist_rgb
         depth = obs.wrist_depth
         mask = obs.wrist_mask
-        has_object = len(task._robot.gripper._grasped_objects) > 0
+        agent.has_object = len(task._robot.gripper._grasped_objects) > 0
 
         # Perform action and step simulation
         # action = agent.act(obs)
