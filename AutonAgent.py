@@ -1,7 +1,8 @@
 import numpy as np
 import scipy as sp
-from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
+import quaternion as quater
 from scipy.spatial.transform import Rotation as R
+import copy
 
 
 
@@ -87,7 +88,7 @@ class AutonAgentAbsolute_Mode:
         self.reached_goal = False
         self.step_size = 0.01
         self.quat_step = 0.05
-        self.height_above = 0.2
+        self.height_above = 0.1
         self.obs = []
         self.obj_poses = []
         self.on_target = False
@@ -105,27 +106,58 @@ class AutonAgentAbsolute_Mode:
             self.reached_goal = False
             
         ####### Position Control #############
-        if self.reached_goal:
-            t_pos     = goal_loc[:3]
-            t_pos[2] += 0.05
-        else:
-            t_pos     = goal_loc[:3]
-            t_pos[2] += self.height_above
+        # if self.reached_goal:
+            # t_pos     = goal_loc[:3]
+            # t_pos[2] += 0.05
+        # else:
+        t_pos     = goal_loc[:3]
+        t_pos[2] += self.height_above
 
-        if np.linalg.norm(t_pos - obs.gripper_pose[:3]) < .01:
-            self.on_target = True
+
 
         des_pos = list(t_pos)
 
 
         ######## Orientation Control ##########
-        t_qt  = obs.gripper_pose[3:]
-        # t_qt = goal_loc[3:]
-        des_quat = list(t_qt)
+        # Robot: X, Y, Z
+        # Box: Y, X, -Z
+        # target_qt  = obs.gripper_pose[3:]
+        # target_qt = goal_loc[3:]
+        des_quat = [0, 1,0,0]
+
+        # des_quat = self.orientationControl(target_qt)
+
+        des_quat = list(des_quat)
 
 
         ####### Gripper Control ############
         if self.on_target: gripper_pos = [0]
         else: gripper_pos = [1] ### Open: 1, Closed: 0
 
+
+
+        # if self.on_target:
+        des_pos = list([ 0.2, 0.45, 0.85])
+        # else:
+        #     des_pos = list([ 0.2, 0, 0.85])
+            
+        if np.linalg.norm(des_pos[:3] - obs.gripper_pose[:3]) < .01:
+            self.on_target = True
+
+            
         return des_pos + des_quat + gripper_pos
+
+
+    def orientationControl(self, target):
+        r = quater.from_float_array(target)
+        r_vect = quater.as_rotation_vector(r)
+
+        cop_vect = copy.copy(r_vect)
+        r_vect[0] = cop_vect[1]
+        r_vect[1] = cop_vect[0]
+        r_vect[2] *=-1
+
+
+        r = quater.from_rotation_vector(r_vect)
+        out = quater.as_float_array(r)
+        return out

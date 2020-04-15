@@ -1,3 +1,8 @@
+import gym
+import rlbench.gym
+from tensorforce import Agent
+# from tensorforce import Agent, Environment
+
 import numpy as np
 import scipy as sp
 from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
@@ -8,7 +13,8 @@ from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
 from rlbench.tasks import *
 
-from AutonAgent import *
+from dqn_class import *
+
 
 def skew(x):
     return np.array([[0, -x[2], x[1]],
@@ -27,18 +33,6 @@ def sample_normal_pose(pos_scale, rot_scale):
     quat_wxyz = from_rotation_matrix(R)
 
     return pos, quat_wxyz
-
-
-class RandomAgent:
-
-    def act(self, obs):
-        delta_pos = [(np.random.rand() * 2 - 1) * 0.005, 0, 0]
-        # delta_pos = [0, 0, -.1]
-        delta_quat = [0, 0, 0, 1] # xyzw
-        # gripper_pos = [np.random.rand() > 0.5]
-        gripper_pos = [0]
-        return delta_pos + delta_quat + gripper_pos
-
 
 
 class NoisyObjectPoseSensor:
@@ -68,6 +62,7 @@ class NoisyObjectPoseSensor:
         return obj_poses
 
 
+
 if __name__ == "__main__":
     # action_mode = ActionMode(ArmActionMode.DELTA_EE_POSE_PLAN) # See rlbench/action_modes.py for other action modes
     action_mode = ActionMode(ArmActionMode.ABS_EE_POSE_PLAN) # See rlbench/action_modes.py for other action modes
@@ -75,29 +70,63 @@ if __name__ == "__main__":
     env = Environment(action_mode, '', ObservationConfig(), False)
     task = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
     
-    # agent = RandomAgent()
-    agent = AutonAgentAbsolute_Mode()
-    
+    len_episode = 30
+
+    agent = TensorForceDQN()
+    agent.len_episode = len_episode
     obj_pose_sensor = NoisyObjectPoseSensor(env)
-   
+    
     descriptions, obs = task.reset()
     print(descriptions)
+
+    target_name = 'sugar'    
+
     while True:
-        # Getting noisy object poses
         obj_poses = obj_pose_sensor.get_poses()
+        target_state = list(obj_poses[target_name])
+        target_state[2] += 0.1
 
-        # Getting various fields from obs
-        current_joints = obs.joint_positions
-        gripper_pose = obs.gripper_pose
-        rgb = obs.wrist_rgb
-        depth = obs.wrist_depth
-        mask = obs.wrist_mask
-        agent.has_object = len(task._robot.gripper._grasped_objects) > 0
+        # best_reward = 1/np.linalg.norm(target_state[:3] - obs.gripper_pose[:3])
+        best_reward = 0
+        for i in range(len_episode):
+            # Getting noisy object poses
+            obj_poses = obj_pose_sensor.get_poses()
+    
+            # Getting various fields from obs
+            current_joints = obs.joint_positions
+            gripper_pose = obs.gripper_pose
+            rgb = obs.wrist_rgb
+            depth = obs.wrist_depth
+            mask = obs.wrist_mask
+            agent.has_object = len(task._robot.gripper._grasped_objects) > 0
+    
 
-        # Perform action and step simulation
-        action = agent.act(obs, obj_poses)
+            actions = agent.act(obs,obj_poses)
 
-        obs, reward, terminate = task.step(action)
+            try:
+                obs, reward, terminal = task.step(actions)
 
+                ### Check current distance
+                agent.dist_after_action = np.linalg.norm(target_state[:3] - obs.gripper_pose[:3])
+
+                ### Calculate reward
+                reward, terminal = agent.calculateReward()
+
+            except:
+                reward = -0.5
+                terminal = False
+
+            ## Observe results
+            agent.agent.observe(terminal=terminal, reward=reward)
+
+            print('Iteration: ' + str(i) + ', Reward: ' + str(reward))
+
+        print('Reset')
+        descriptions, obs = task.reset()
+        agent.agent.reset()
+        
 
     env.shutdown()
+    agent.agent.close()
+
+
