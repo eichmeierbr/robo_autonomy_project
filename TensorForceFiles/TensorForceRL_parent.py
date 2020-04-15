@@ -2,7 +2,7 @@ from tensorforce import Agent
 import numpy as np
 
 
-class TensorForceRL:
+class TensorForce_Parent:
 
     def __init__(self):
 
@@ -11,30 +11,23 @@ class TensorForceRL:
         self.input_high = 1.0
         self.input_low  = 0.0
         
-        states_dict = {'type': 'float', 'shape': self.num_states}
-        actions_dict = {'type': 'float', 'shape': self.num_actions, 'min_value': self.input_low, 'max_value': self.input_high}
         
-        self.len_episode = 15
+        self.len_episode = 10
         self.explore = 0.3
 
-
-        self.agent = Agent.create(
-            agent='dqn',
-            states = states_dict,  # alternatively: states, actions, (max_episode_timesteps)
-            actions = actions_dict,
-            memory=10000,
-            max_episode_timesteps= self.len_episode,
-        )
-
-
-        self.x_r = [-0.0, 0.45]   ## X Range: -0.025 - 0.52
-        self.y_r = [-0.4, 0.4]    ## Y Range: -0.45 - 0.45 
-        self.z_r = [0.7, 1.65]    ## Z Range: 0.751 - 1.75 (Maybe a little higher)
+        self.x_r = [-0.025, 0.52]   ## X Range: -0.025 - 0.52
+        self.y_r = [-0.45, 0.45]    ## Y Range: -0.45 - 0.45 
+        self.z_r = [0.751, 1.75]    ## Z Range: 0.751 - 1.75 (Maybe a little higher)
 
         self.dist_before_action = 0
         self.dist_after_action = 0
 
         self.has_object = False
+
+
+        self.agent = self.createRLagent()
+
+
 
 
     def act(self, obs, obj_poses):
@@ -59,7 +52,7 @@ class TensorForceRL:
 
         a_in = self.scaleActions(actions)
 
-        actions2 = list(a_in) + [0,1,0,0] + list([actions[3]>0.5])
+        actions2 = list(a_in[:3]) + [0,1,0,0] + list([actions[3]>0.5])
 
         self.dist_before_action = np.linalg.norm(target_state[:3] - gripper_pose[:3])
         return actions2
@@ -75,23 +68,38 @@ class TensorForceRL:
 
     def calculateReward(self):
         terminal = False
-        reward = 0.0
+        reward = -self.dist_before_action/4
 
-        # If our action took us closer to the goal
-        if self.dist_before_action > self.dist_after_action:
-            reward = 1/self.dist_after_action
-            # best_reward = max(reward, best_reward)
 
-        elif self.dist_before_action < self.dist_after_action:
-            reward = 0.0
+        if self.dist_after_action < 0.1:
+            reward +=  20
+        else:
+            temp = (self.dist_before_action - self.dist_after_action) / self.dist_before_action * 3
+            if temp > 0:
+                reward = temp
+            else:
+                reward += -0.1
+
+        
 
         if self.has_object: 
-            reward = 50.0
+            reward += 50.0
             terminal = True
+
+        
 
         return reward, terminal
 
 
 
-
-
+###        # If our action took us closer to the goal
+###        if self.dist_before_action > self.dist_after_action:
+###            old_reward = 1/self.dist_before_action
+###            reward = 1/self.dist_after_action
+###
+###            if reward - old_reward < 0.2:
+###                reward = 0.2
+###
+###        elif self.dist_before_action < self.dist_after_action:
+###            reward = 0.0
+###

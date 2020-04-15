@@ -1,19 +1,30 @@
-import gym
-import rlbench.gym
-from tensorforce import Agent
-# from tensorforce import Agent, Environment
-
 import numpy as np
 import scipy as sp
 from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
 from scipy.spatial.transform import Rotation as R
+from matplotlib import pyplot as plt
 
 from rlbench.environment import Environment
 from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
 from rlbench.tasks import *
 
-from dqn_class import *
+
+
+############################################################
+########### TensorForce Includes ###########################
+import sys
+sys.path.append('../')
+sys.path.append(sys.path[0] + '/TensorForceFiles')
+
+import gym
+import rlbench.gym
+from tensorforce import Agent
+
+from DQN_class import *
+from TensorForce_class import *
+########### TensorForce Includes ###########################
+############################################################
 
 
 def skew(x):
@@ -70,9 +81,10 @@ if __name__ == "__main__":
     env = Environment(action_mode, '', ObservationConfig(), False)
     task = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
     
-    len_episode = 30
+    len_episode = 10
 
-    agent = TensorForceDQN()
+    # agent = TensorForceDQN()
+    agent = TensorForceClass()
     agent.len_episode = len_episode
     obj_pose_sensor = NoisyObjectPoseSensor(env)
     
@@ -80,13 +92,17 @@ if __name__ == "__main__":
     print(descriptions)
 
     target_name = 'sugar'    
+    episode_num =0
+    rews = []
+    save_freq = 20
 
     while True:
+        episode_num += 1
+        total_reward = 0
         obj_poses = obj_pose_sensor.get_poses()
         target_state = list(obj_poses[target_name])
         target_state[2] += 0.1
 
-        # best_reward = 1/np.linalg.norm(target_state[:3] - obs.gripper_pose[:3])
         best_reward = 0
         for i in range(len_episode):
             # Getting noisy object poses
@@ -105,25 +121,31 @@ if __name__ == "__main__":
 
             try:
                 obs, reward, terminal = task.step(actions)
-
+    
                 ### Check current distance
                 agent.dist_after_action = np.linalg.norm(target_state[:3] - obs.gripper_pose[:3])
-
+    
                 ### Calculate reward
                 reward, terminal = agent.calculateReward()
 
             except:
-                reward = -0.5
+                reward = -agent.dist_before_action*5
                 terminal = False
 
             ## Observe results
             agent.agent.observe(terminal=terminal, reward=reward)
+            total_reward += reward
 
-            print('Iteration: ' + str(i) + ', Reward: ' + str(reward))
+            print('Iteration: %i, Reward: %.1f' %(i, reward))
 
+        print('Episode: %i, Average Reward: %.1f' %(episode_num,total_reward))
+        rews.append(total_reward)
         print('Reset')
         descriptions, obs = task.reset()
         agent.agent.reset()
+
+
+        if episode_num % save_freq == save_freq - 1: agent.agent.save(directory='rl_models')
         
 
     env.shutdown()

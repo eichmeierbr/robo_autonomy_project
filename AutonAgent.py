@@ -137,7 +137,7 @@ class AutonAgentAbsolute_Mode:
 
 
         # if self.on_target:
-        des_pos = list([ 0.2, 0.45, 0.85])
+        des_pos = list([ 0.228, -0.121, 1.406])
         # else:
         #     des_pos = list([ 0.2, 0, 0.85])
             
