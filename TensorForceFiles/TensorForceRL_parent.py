@@ -4,7 +4,7 @@ import numpy as np
 
 class TensorForce_Parent:
 
-    def __init__(self):
+    def __init__(self, load=None):
 
         self.num_states = 6
         self.num_actions = 4
@@ -13,7 +13,7 @@ class TensorForce_Parent:
         
         
         self.len_episode = 10
-        self.explore = 0.3
+        self.explore = 0.5
 
         self.x_r = [-0.025, 0.52]   ## X Range: -0.025 - 0.52
         self.y_r = [-0.45, 0.45]    ## Y Range: -0.45 - 0.45 
@@ -24,8 +24,7 @@ class TensorForce_Parent:
 
         self.has_object = False
 
-
-        self.agent = self.createRLagent()
+        self.agent = self.createRLagent(load=load)
 
 
 
@@ -33,10 +32,16 @@ class TensorForce_Parent:
     def act(self, obs, obj_poses):
         gripper_pose = obs.gripper_pose
 
+
+        key = 'sugar'
         ###########################################################
         ###### PREPARE INPUT STATES TO RL FUNCTION ################
-        target_state = list(obj_poses['sugar'])
-        target_state[2] += 0.1
+        if key in obj_poses:
+            target_state = list(obj_poses[key])
+            target_state[2] += 0.1
+        else:
+            self.has_object = True
+            target_state = [0.2, 0.0, 1.1]
         # in_states = list(gripper_pose)
         # in_states.extend(target_state)
 
@@ -48,7 +53,7 @@ class TensorForce_Parent:
 
         actions = self.agent.act(states= in_states)
         if self.explore > np.random.uniform():
-            actions = np.random.uniform(size=self.num_actions)
+            actions = np.random.uniform(low=0.25, high=0.75, size=self.num_actions)
 
         a_in = self.scaleActions(actions)
 
@@ -71,35 +76,22 @@ class TensorForce_Parent:
         reward = -self.dist_before_action/4
 
 
-        if self.dist_after_action < 0.1:
-            reward +=  20
+        if self.dist_after_action < 0.2:
+            reward +=  20 + 1/self.dist_after_action
+
+        temp = (self.dist_before_action - self.dist_after_action) / self.dist_before_action * 3
+        if temp > 0:
+            reward += temp
         else:
-            temp = (self.dist_before_action - self.dist_after_action) / self.dist_before_action * 3
-            if temp > 0:
-                reward = temp
-            else:
-                reward += -0.1
+            reward += min(temp,-0.1)
 
         
 
         if self.has_object: 
-            reward += 50.0
+            reward += 100.0
             terminal = True
 
         
 
         return reward, terminal
 
-
-
-###        # If our action took us closer to the goal
-###        if self.dist_before_action > self.dist_after_action:
-###            old_reward = 1/self.dist_before_action
-###            reward = 1/self.dist_after_action
-###
-###            if reward - old_reward < 0.2:
-###                reward = 0.2
-###
-###        elif self.dist_before_action < self.dist_after_action:
-###            reward = 0.0
-###

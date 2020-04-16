@@ -148,6 +148,39 @@ class AutonAgentAbsolute_Mode:
         return des_pos + des_quat + gripper_pos
 
 
+    def move_above_object(self, obj_poses, key):
+        goal_loc = obj_poses[key]
+        ####### Position Control #############
+        t_pos    = goal_loc[:3]
+        t_pos[2] += self.height_above
+        # t_pos[2] = 1
+        des_pos = list(t_pos)
+
+        ######## Orientation Control ##########
+        des_quat = [0, 1,0,0]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [1] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos       
+
+        
+    def move_to_pos(self, goal_pose):
+        ####### Position Control #############
+        t_pos    = goal_pose[:3]
+        des_pos = list(t_pos)
+
+        ######## Orientation Control ##########
+        des_quat = [0, 1,0,0]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [1] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos   
+
+
     def orientationControl(self, target):
         r = quater.from_float_array(target)
         r_vect = quater.as_rotation_vector(r)

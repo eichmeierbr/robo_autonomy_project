@@ -5,15 +5,15 @@ import numpy as np
 
 class TensorForceClass(TensorForce_Parent):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, load=None):
+        super().__init__(load=load)
 
 
-    def createRLagent(self):
+    def createRLagent(self, load=None):
         states_dict = {'type': 'float', 'shape': self.num_states}
         actions_dict = {'type': 'float', 'shape': self.num_actions, 'min_value': self.input_low, 'max_value': self.input_high}
 
-        return  Agent.create(
+        agent =   Agent.create(
             agent='tensorforce',
             states = states_dict,  # alternatively: states, actions, (max_episode_timesteps)
             actions = actions_dict,
@@ -25,4 +25,9 @@ class TensorForceClass(TensorForce_Parent):
             objective='policy_gradient',
             reward_estimation=dict(horizon=20)
         )
+
+        if not load ==None:
+            agent.restore(directory=load)
+
+        return agent
 
