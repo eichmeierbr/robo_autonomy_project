@@ -153,7 +153,7 @@ class AutonAgentAbsolute_Mode:
         ####### Position Control #############
         t_pos    = goal_loc[:3]
         t_pos[2] += self.height_above
-        # t_pos[2] = 1
+        t_pos[2] = 0.99
         des_pos = list(t_pos)
 
         ######## Orientation Control ##########

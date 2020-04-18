@@ -4,10 +4,10 @@ import numpy as np
 
 class TensorForce_Parent:
 
-    def __init__(self, load=None):
+    def __init__(self, num_states=6, num_actions=4, load=None):
 
-        self.num_states = 6
-        self.num_actions = 4
+        self.num_states = num_states
+        self.num_actions = num_actions
         self.input_high = 1.0
         self.input_low  = 0.0
         

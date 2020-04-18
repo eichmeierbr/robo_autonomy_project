@@ -5,11 +5,11 @@ import numpy as np
 
 class TensorForceDQN(TensorForce_Parent):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self,num_states=6, num_actions=4, load=None):
+        super().__init__(num_states=num_states, num_actions=num_actions,load=load)
 
 
-    def createRLagent(self):
+    def createRLagent(self, load):
         states_dict = {'type': 'float', 'shape': self.num_states}
         actions_dict = {'type': 'float', 'shape': self.num_actions, 'min_value': self.input_low, 'max_value': self.input_high}
 
