@@ -3,6 +3,7 @@ import scipy as sp
 from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
 from scipy.spatial.transform import Rotation as R
 from matplotlib import pyplot as plt
+import copy
 
 from rlbench.environment import Environment
 from rlbench.action_modes import ArmActionMode, ActionMode
@@ -102,7 +103,7 @@ if __name__ == "__main__":
                 'tuna_grasp_point', 'soup_grasp_point', 'strawberry_jello_grasp_point', 'chocolate_jello_grasp_point']
     episode_num =0
     rews = []
-    save_freq = 5
+    save_freq = 10
 
     while True:
         episode_num += 1
@@ -111,7 +112,8 @@ if __name__ == "__main__":
         RLagent.target_num = np.random.randint(0,len(targets)-1)
         target_name = targets[RLagent.target_num]
         target_state = list(obj_poses[target_name])
-        RLagent.target_start_pose = target_state
+        RLagent.target_start_pose = copy.deepcopy(target_state)
+        RLagent.target_state = target_state
 
 
         try:
@@ -138,8 +140,9 @@ if __name__ == "__main__":
             rgb = obs.wrist_rgb
             depth = obs.wrist_depth
             mask = obs.wrist_mask
+
+            # Update arm states
             RLagent.has_object = len(task._robot.gripper._grasped_objects) > 0
-    
 
             actions = RLagent.act(obs,obj_poses, key=target_name)
 
@@ -165,7 +168,7 @@ if __name__ == "__main__":
 
             print('Iteration: %i, Reward: %.1f' %(i, reward))
 
-        print('Episode: %i, Average Reward: %.1f' %(episode_num,total_reward))
+        print('Episode: %i, Total Reward: %.1f' %(episode_num,total_reward))
         rews.append(total_reward)
         print('Reset')
         descriptions, obs = task.reset()

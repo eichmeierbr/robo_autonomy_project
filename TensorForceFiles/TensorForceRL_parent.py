@@ -25,6 +25,7 @@ class TensorForce_Parent:
         self.has_object = False
 
         self.agent = self.createRLagent(load=load)
+        self.target_state = []
 
 
 
