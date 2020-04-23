@@ -234,6 +234,7 @@ class AutonAgentAbsolute_Mode:
         actions = list(obj_poses['waypoint3'])
         actions.append(0)
         obs, reward, terminal = task.step(actions)
+        return obs
     
 
 

@@ -14,9 +14,9 @@ class DQN_place(DQN_grasp):
         self.num_actions = 5 # X, Y, Z, yaw, grasp
         super().__init__(num_states=num_states, num_actions=num_actions, load=load)
         
-        self.x_r = [0, 1] # Cupboard coords: Point down
+        self.x_r = [-0.1, 0.05] # Cupboard coords: Point down
         self.y_r = [-0.1, 0.1]  # Cupboad coords: Point to left of cupboard
-        self.z_r = [1.0, 1.3] # Cupboard coords: Point to cupboard
+        self.z_r = [-0.275, 0.1] # Cupboard coords: Point to cupboard
         self.yaw_r = [0, np.pi] 
         self.explore = 0.3
         self.stage_point = []
@@ -35,7 +35,7 @@ class DQN_place(DQN_grasp):
 
         
 
-    def act(self, obs, obj_poses, key='cupboard'):
+    def act(self, obs, obj_poses, key='waypoint4'):
         self.stage_point = obj_poses['waypoint3']
         gripper_pose = obs.gripper_pose
         self.ee_pos = gripper_pose
@@ -59,20 +59,23 @@ class DQN_place(DQN_grasp):
 
 
     def scaleActions(self, actions):
-        # Convert gripper quat into rot matrix
+   
+        # Scale all the Actions
+        x_pre      = actions[0]*(self.x_r[1] -   self.x_r[0])   + self.x_r[0]
+        y_pre      = actions[1]*(self.y_r[1] -   self.y_r[0])   + self.y_r[0]
+        z_pre      = actions[2]*(self.z_r[1] -   self.z_r[0])   + self.z_r[0]
+        actions[3] = actions[3]*(self.z_r[1] -   self.z_r[0])   + self.z_r[0]
+        actions[4] = actions[4]*(self.yaw_r[1] - self.yaw_r[0]) + self.yaw_r[0]
+
+
+        trans = np.array([x_pre, y_pre, z_pre])
+
+        # Convert the Cabinet Frame Coordinates into the World Fram Coordinates
         rot_val = R.from_quat(self.ee_pos[3:7])
         rot_mat = rot_val.as_matrix()
-   
-        x_pre = actions[0]*(self.x_r[1] - self.x_r[0]) + self.x_r[0]
-        y_pre = actions[1]*(self.y_r[1] - self.y_r[0]) + self.y_r[0]
-        z_pre = actions[2]*(self.z_r[1] - self.z_r[0]) + self.z_r[0]
-        trans = np.array([x_pre, y_pre, z_pre])
         trans = rot_mat @ trans
 
-        actions[0] = actions[0]*(self.z_r[1] - self.z_r[0]) + self.z_r[0]
-        actions[1] = actions[1]*(self.yaw_r[1] - self.yaw_r[0]) + self.yaw_r[0]
-
-        if self.has_object: actions[-1] = 0
+        # if self.has_object: actions[-1] = 0
 
         return actions
     
@@ -106,3 +109,30 @@ class DQN_place(DQN_grasp):
 
 
 
+ 
+#### CODE TO TRANSLATE BETWEEN CUPBOARD AND WORLD FRAMES IMPLEMENT WITH RL SCALE AND ACTIONS
+####        actions = list(obj_poses['waypoint3']) + [0]
+####        obs, reward, terminal = task.step(actions)
+####
+####        target_name = 'waypoint4'
+####        t_pos = obj_poses[target_name]
+####        actions = list(obj_poses[target_name]) + [0]
+####        obs, reward, terminal = task.step(actions)
+####
+####
+####        rot_val = R.from_quat(obj_poses[target_name][3:7])
+####        to_world_mat = rot_val.as_matrix()
+####
+####        to_world_mat = np.hstack((to_world_mat,np.array(t_pos[:3]).reshape([-1,1])))
+####        to_world_mat = np.vstack((to_world_mat, [0,0,0,1]))
+####
+####        to_cabinet_mat = np.linalg.inv(to_world_mat)
+####
+####        stage_pt = np.hstack((obj_poses['waypoint3'][:3],1))
+####        cab_pt = to_cabinet_mat @ stage_pt.T
+####
+####        go_pt = np.array([0, 0, 0.1,1])
+####        world_pt = to_world_mat @ go_pt.T
+####
+####        actions = list(world_pt[:3]) + list(obj_poses[target_name][3:7]) + [0]
+####        obs, reward, terminal = task.step(actions)

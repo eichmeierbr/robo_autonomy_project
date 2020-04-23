@@ -171,11 +171,11 @@ if __name__ == "__main__":
         print('Episode: %i, Total Reward: %.1f' %(episode_num,total_reward))
         rews.append(total_reward)
         print('Reset')
+        if episode_num % save_freq == save_freq - 1: RLagent.agent.save(directory=save_name)
         descriptions, obs = task.reset()
         RLagent.agent.reset()
 
 
-        if episode_num % save_freq == save_freq - 1: RLagent.agent.save(directory=save_name)
         
 
     env.shutdown()

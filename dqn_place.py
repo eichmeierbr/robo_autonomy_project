@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
+from scipy.spatial.transform import Rotation as R
 import copy
 
 from rlbench.environment import Environment
@@ -86,8 +87,8 @@ if __name__ == "__main__":
 
     manual_agent = AutonAgentAbsolute_Mode()
     # rl_grasp_agent = DQN_place(load = save_name)
-    rl_grasp_agent = DQN_place(load = None)
-    rl_grasp_agent.len_episode = len_episode
+    # rl_grasp_agent = DQN_place(load = None)
+    # rl_grasp_agent.len_episode = len_episode
 
     obj_pose_sensor = NoisyObjectPoseSensor(env)
     
@@ -106,21 +107,21 @@ if __name__ == "__main__":
         obj_poses = obj_pose_sensor.get_poses()
         target_num =  np.random.randint(0,len(targets)-1)
         target_name = targets[target_num]
-        rl_grasp_agent.target_num = target_num
+        # rl_grasp_agent.target_num = target_num
         target_state = list(obj_poses[target_name])
-        rl_grasp_agent.target_start_pose = copy.deepcopy(target_state)
-        rl_grasp_agent.target_state = target_state
+        # rl_grasp_agent.target_start_pose = copy.deepcopy(target_state)
+        # rl_grasp_agent.target_state = target_state
 
 
         try:
-            manual_agent.pickup_and_stage_object(target_name, task,obj_pose_sensor)
+            obs = manual_agent.pickup_and_stage_object(target_name, task,obj_pose_sensor)
         except:
             descriptions, obs = task.reset()
             continue
 
         best_reward = 0
 
-        target_name = 'cupboard'
+        target_name = 'waypoint4'
         for i in range(len_episode):
             # Getting noisy object poses
             obj_poses = obj_pose_sensor.get_poses()
