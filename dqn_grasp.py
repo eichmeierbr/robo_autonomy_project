@@ -90,7 +90,7 @@ if __name__ == "__main__":
     save_name = 'dqn_grasp_2'
 
     agent2 = AutonAgentAbsolute_Mode()
-    RLagent = DQN_grasp_2(load = save_name)
+    RLagent = DQN_grasp_class_2(load = save_name)
     # agent = TensorForceClass(load='dqn_grasp')
 
     RLagent.len_episode = len_episode

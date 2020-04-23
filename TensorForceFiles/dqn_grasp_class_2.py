@@ -5,7 +5,7 @@ from dqn_grasp import *
 import numpy as np
 
 
-class DQN_grasp_2(DQN_grasp):
+class DQN_grasp_class_2(DQN_grasp):
 
     def __init__(self, num_states=16, num_actions=3, load=None):
         self.num_states = 16 # Gripper pose, object pose, Gripper Open, Target_num
@@ -80,9 +80,9 @@ class DQN_grasp_2(DQN_grasp):
             reward += min(temp,-0.1)
         
         if self.has_object: 
-            reward += 30
+            reward += 50
             if self.ee_pos[-1] > self.target_start_pose[2] + 0.05:
-                reward += 350
+                reward += 700
                 terminal = True
                 return reward, terminal
 
@@ -90,7 +90,7 @@ class DQN_grasp_2(DQN_grasp):
             reward -= 10
 
         if not self.gripper_open and not self.has_object:
-            reward -=1
+            reward -=5
 
         return reward, terminal
 
