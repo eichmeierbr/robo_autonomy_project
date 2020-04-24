@@ -153,8 +153,7 @@ class AutonAgentAbsolute_Mode:
         ####### Position Control #############
         t_pos    = goal_loc[:3]
         t_pos[2] = goal_loc[2]+self.height_above-depth
-        # t_pos[2] = 1
-        t_pos[2] = 0.99
+        # t_pos[2] = 0.99
         des_pos = list(t_pos)
 
         ######## Orientation Control ##########
@@ -285,14 +284,14 @@ class AutonAgentAbsolute_Mode:
         ## Stage above object
         obj_poses = obj_pose_sensor.get_poses()
 
-        actions = self.move_above_object(obj_poses, target_name)
+        actions = self.move_above_object(obs, obj_poses, target_name)
         actions[3:7] = obj_poses[target_name][3:7]
         obs, reward, terminal = task.step(actions)
 
         ## Drop Down To Object
         obj_poses = obj_pose_sensor.get_poses()
         des_pos = list(obj_poses[target_name])
-        actions = self.move_to_pos(des_pos)
+        actions = self.move_to_pos(obs, des_pos)
         actions[3:7] = obs.gripper_pose[3:7]
         obs, reward, terminal = task.step(actions)
 
