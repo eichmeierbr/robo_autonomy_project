@@ -122,7 +122,7 @@ if __name__ == "__main__":
             obs, reward, terminal = task.step(actions)
     
             ## Stage above object
-            actions = agent2.move_above_object(obj_poses, target_name)
+            actions = agent2.move_above_object(obj_poses, target_name, 0)
             obs, reward, terminal = task.step(actions)
         except:
             descriptions, obs = task.reset()
