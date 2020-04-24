@@ -85,15 +85,15 @@ if __name__ == "__main__":
     len_episode = 10
     save_name = 'dqn_place'
 
-    manual_agent = AutonAgentAbsolute_Mode()
-    # rl_grasp_agent = DQN_place(load = save_name)
-    # rl_grasp_agent = DQN_place(load = None)
-    # rl_grasp_agent.len_episode = len_episode
-
     obj_pose_sensor = NoisyObjectPoseSensor(env)
     
     descriptions, obs = task.reset()
     print(descriptions)
+
+    manual_agent = AutonAgentAbsolute_Mode(obs)
+        # rl_grasp_agent = DQN_place(load = save_name)
+        # rl_grasp_agent = DQN_place(load = None)
+        # rl_grasp_agent.len_episode = len_episode
 
     targets = ['crackers_grasp_point', 'mustard_grasp_point', 'coffee_grasp_point', 'sugar_grasp_point','spam_grasp_point', 
                 'tuna_grasp_point', 'soup_grasp_point', 'strawberry_jello_grasp_point', 'chocolate_jello_grasp_point']
