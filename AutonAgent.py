@@ -83,23 +83,23 @@ class AutonAgentDelta_Mode:
 
 
 class AutonAgentAbsolute_Mode:
-
-    def __init__(self):
+  
+    def __init__(self, obs):
         self.reached_goal = False
         self.step_size = 0.01
         self.quat_step = 0.05
         self.height_above = 0.1
-        self.obs = []
+        self.obs = obs
         self.obj_poses = []
         self.on_target = False
         self.has_object = False
 
-    def act(self, obs, obj_poses):
+    def act(self, obs, obj_poses, key):
         self.obs = obs
         self.obj_poses = obj_poses
-        cracker_loc = self.obj_poses['sugar']
+        cracker_loc = self.obj_poses[key]
         goal_loc = cracker_loc.copy()
-
+        print(obs.gripper_pose)
         if np.linalg.norm(goal_loc[:3] - obs.gripper_pose[:3]) < self.height_above + .01:
             self.reached_goal = True
         else:
@@ -123,7 +123,7 @@ class AutonAgentAbsolute_Mode:
         # Box: Y, X, -Z
         # target_qt  = obs.gripper_pose[3:]
         # target_qt = goal_loc[3:]
-        des_quat = [0, 1,0,0]
+        des_quat = list(self.obj_poses['waypoint3'][3:])
 
         # des_quat = self.orientationControl(target_qt)
 
@@ -137,7 +137,7 @@ class AutonAgentAbsolute_Mode:
 
 
         # if self.on_target:
-        des_pos = list([ 0.228, -0.121, 1.406])
+        des_pos = list(self.obj_poses['waypoint3'][:3])
         # else:
         #     des_pos = list([ 0.2, 0, 0.85])
             
@@ -148,11 +148,11 @@ class AutonAgentAbsolute_Mode:
         return des_pos + des_quat + gripper_pos
 
 
-    def move_above_object(self, obj_poses, key):
-        goal_loc = obj_poses[key]
+    def move_above_object(self, obj_poses, key, depth):
+        goal_loc = obj_poses['sugar'].copy()
         ####### Position Control #############
         t_pos    = goal_loc[:3]
-        t_pos[2] += self.height_above
+        t_pos[2] = goal_loc[2]+self.height_above-depth
         # t_pos[2] = 1
         des_pos = list(t_pos)
 
@@ -161,12 +161,48 @@ class AutonAgentAbsolute_Mode:
         des_quat = list(des_quat)
 
         ####### Gripper Control ############
-        gripper_pos = [1] ### Open: 1, Closed: 0
+        gripper_pos = [self.obs.gripper_open] ### Open: 1, Closed: 0
 
         return des_pos + des_quat + gripper_pos       
+    
+    def grasp_object(self, obs):
+        self.obs = obs
+        goal_loc = self.obs.gripper_pose.copy()
+        ####### Position Control #############
+        t_pos    = goal_loc[:3]
+        des_pos = list(t_pos)
+
+        ######## Orientation Control ##########
+        des_quat = goal_loc[3:]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [0] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos 
+
+    def ungrasp_object(self, obs):
+        self.obs = obs
+        goal_loc = obs.gripper_pose.copy()
+        ####### Position Control #############
+        t_pos    = goal_loc[:3]
+        t_pos[2] += self.height_above
+
+        # t_pos[2] = 1
+        des_pos = list(t_pos)
+
+        ######## Orientation Control ##########
+        des_quat = goal_loc[3:]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [1] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos
 
         
-    def move_to_pos(self, goal_pose):
+    def move_to_pos(self, obs, goal_pose):
+        self.obs = obs
         ####### Position Control #############
         t_pos    = goal_pose[:3]
         des_pos = list(t_pos)
@@ -176,10 +212,49 @@ class AutonAgentAbsolute_Mode:
         des_quat = list(des_quat)
 
         ####### Gripper Control ############
-        gripper_pos = [1] ### Open: 1, Closed: 0
+        gripper_pos = [self.obs.gripper_open] ### Open: 1, Closed: 0
+
 
         return des_pos + des_quat + gripper_pos   
 
+    def move_above_cabinet(self, obs, obj_poses, object_number):
+        self.obs = obs
+        goal_loc = obj_poses['waypoint3'].copy()
+        ####### Position Control #############
+        t_pos   = goal_loc[:3]
+        spot = -.11+.02*object_number
+        if (spot>.12):
+            spot = -.11+.02*(object_number-10)
+        t_pos   = t_pos + quater.as_rotation_matrix(quater.from_float_array(goal_loc[3:]))@np.array([0,spot,0])
+        des_pos = list(t_pos)
+
+        ######## Orientation Control ##########
+        des_quat = goal_loc[3:]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [self.obs.gripper_open] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos  
+
+    def move_into_cabinet(self, obs, obj_poses, object_number):
+        self.obs = obs
+        goal_loc = obj_poses['waypoint4'].copy()
+        ####### Position Control #############
+        t_pos    = goal_loc[:3]
+        spot = -.11+.02*object_number
+        if (spot>.12):
+            spot = -.11+.02*(object_number-10)
+        t_pos   = t_pos + quater.as_rotation_matrix(quater.from_float_array(goal_loc[3:]))@np.array([0,spot,0])
+        des_pos = list(t_pos)
+        ######## Orientation Control ##########
+        des_quat = goal_loc[3:]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [self.obs.gripper_open] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos 
 
     def orientationControl(self, target):
         r = quater.from_float_array(target)
