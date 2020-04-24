@@ -196,6 +196,11 @@ def rlPlaceObject(rl_place_agent, obs):
 
     # if episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=save_name)
 
+
+def resetTask(task):
+    descriptions, obs = task.reset()
+    return descriptions, obs
+
 while True:
     ## Initialize Episode ##
     # Initialize Episode Params
@@ -217,7 +222,7 @@ while True:
     try:
         obs = stageGripperAboveTarget()
     except:
-        descriptions, obs = task.reset()
+        descriptions, obs = resetTask(task)
         continue
     ######### END Stage Gripper above Target ##########
 
@@ -233,9 +238,9 @@ while True:
         rl_place_agent.has_object = True
         success = True
         if not success:
-            descriptions, obs = task.reset()
+            descriptions, obs = resetTask(task)
     except:
-        descriptions, obs = task.reset()
+        descriptions, obs = resetTask(task)
         continue
     ######### End Grasp Object #########
 
@@ -244,7 +249,7 @@ while True:
         obj_poses = obj_pose_sensor.get_poses()
         obs = stageGraspedObject(obs)
     except:
-        descriptions, obs = task.reset()
+        descriptions, obs = resetTask(task)
         continue
     ######### End Stage Grasped Object #########
 
@@ -255,9 +260,9 @@ while True:
 
         ## Need to finish end conditions
         if not success:
-            descriptions, obs = task.reset()
+            descriptions, obs = resetTask(task)
     except:
-        descriptions, obs = task.reset()
+        descriptions, obs = resetTask(task)
         continue
     ######### Place Grasped Object #########
 
