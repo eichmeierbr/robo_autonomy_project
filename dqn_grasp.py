@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
         try:
             ## Stage point to avoid cupboard
-            actions = agent2.move_to_pos([0.25, 0, 0.99])
+            actions = agent2.move_to_pos(obs, [0.25, 0, 0.99])
             obs, reward, terminal = task.step(actions)
     
             ## Stage above object
