@@ -149,11 +149,12 @@ class AutonAgentAbsolute_Mode:
 
 
     def move_above_object(self, obj_poses, key, depth):
-        goal_loc = obj_poses['sugar'].copy()
+        goal_loc = obj_poses[key].copy()
         ####### Position Control #############
         t_pos    = goal_loc[:3]
         t_pos[2] = goal_loc[2]+self.height_above-depth
         # t_pos[2] = 1
+        t_pos[2] = 0.99
         des_pos = list(t_pos)
 
         ######## Orientation Control ##########
@@ -255,6 +256,64 @@ class AutonAgentAbsolute_Mode:
         gripper_pos = [self.obs.gripper_open] ### Open: 1, Closed: 0
 
         return des_pos + des_quat + gripper_pos 
+
+    def align_gripper(self, obj_poses, key):
+        goal_loc = obj_poses[key]
+        ####### Position Control #############
+        t_pos    = goal_loc[:3]
+        t_pos[2] += self.height_above
+        t_pos[2] = 0.99
+        des_pos = list(t_pos)
+
+        ######## Orientation Control ##########
+        des_quat = [0, 1,0,0]
+        des_quat[:2] = goal_loc[3:5]
+        des_quat = list(des_quat)
+
+        ####### Gripper Control ############
+        gripper_pos = [1] ### Open: 1, Closed: 0
+
+        return des_pos + des_quat + gripper_pos  
+
+
+    def pickup_and_stage_object(self, target_name, task, obj_pose_sensor):
+        obj_poses = obj_pose_sensor.get_poses()
+        ## Stage point to avoid cupboard
+        actions = [0.25, 0, 0.99,0,1,0,0,1]
+        obs, reward, terminal = task.step(actions)
+
+        ## Stage above object
+        obj_poses = obj_pose_sensor.get_poses()
+
+        actions = self.move_above_object(obj_poses, target_name)
+        actions[3:7] = obj_poses[target_name][3:7]
+        obs, reward, terminal = task.step(actions)
+
+        ## Drop Down To Object
+        obj_poses = obj_pose_sensor.get_poses()
+        des_pos = list(obj_poses[target_name])
+        actions = self.move_to_pos(des_pos)
+        actions[3:7] = obs.gripper_pose[3:7]
+        obs, reward, terminal = task.step(actions)
+
+        ## Grasp Object
+        actions = list(obs.gripper_pose)
+        actions.append(0)
+        obs, reward, terminal = task.step(actions)
+
+        # Go to pre-stage location
+        actions = [0.25, 0, 0.99,0,1,0,0,0]
+        actions[:2] = obs.gripper_pose[:2]
+        obs, reward, terminal = task.step(actions)
+
+        # Go to stage position
+        actions = list(obj_poses['waypoint3'])
+        actions.append(0)
+        obs, reward, terminal = task.step(actions)
+        return obs
+    
+
+
 
     def orientationControl(self, target):
         r = quater.from_float_array(target)

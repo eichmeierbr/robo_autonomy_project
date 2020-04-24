@@ -3,11 +3,12 @@ import scipy as sp
 from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
 from scipy.spatial.transform import Rotation as R
 from matplotlib import pyplot as plt
+import copy
 
 from rlbench.environment import Environment
 from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
-from rlbench.tasks import *
+from rlbench.tasks import PutGroceriesInCupboard
 
 from AutonAgent import *
 
@@ -24,6 +25,8 @@ import rlbench.gym
 from tensorforce import Agent
 
 from DQN_class import *
+from dqn_grasp_class import *
+from dqn_grasp_class_2 import *
 from TensorForce_class import *
 ########### TensorForce Includes ###########################
 ############################################################
@@ -84,90 +87,98 @@ if __name__ == "__main__":
     task = env.get_task(PutGroceriesInCupboard) # available tasks: EmptyContainer, PlayJenga, PutGroceriesInCupboard, SetTheTable
     
     len_episode = 10
+    save_name = 'dqn_grasp_2'
 
     agent2 = AutonAgentAbsolute_Mode()
-    # agent = TensorForceDQN()
-    # agent = TensorForceClass(load='rl_models')
+    RLagent = DQN_grasp_class_2(load = save_name)
+    # agent = TensorForceClass(load='dqn_grasp')
 
-    # agent.len_episode = len_episode
+    RLagent.len_episode = len_episode
     obj_pose_sensor = NoisyObjectPoseSensor(env)
     
     descriptions, obs = task.reset()
     print(descriptions)
 
-    targets = ['crackers', 'mustard', 'coffee', 'sugar','spam', 'tuna', 'soup', 'strawberry_jello', 'chocolate_jello']
+    targets = ['crackers_grasp_point', 'mustard_grasp_point', 'coffee_grasp_point', 'sugar_grasp_point','spam_grasp_point', 
+                'tuna_grasp_point', 'soup_grasp_point', 'strawberry_jello_grasp_point', 'chocolate_jello_grasp_point']
     episode_num =0
     rews = []
-    save_freq = 20
+    save_freq = 10
 
     while True:
         episode_num += 1
         total_reward = 0
         obj_poses = obj_pose_sensor.get_poses()
-        target_name = targets[np.random.randint(0,len(targets)-1)]
-
+        RLagent.target_num = np.random.randint(0,len(targets)-1)
+        target_name = targets[RLagent.target_num]
         target_state = list(obj_poses[target_name])
+        RLagent.target_start_pose = copy.deepcopy(target_state)
+        RLagent.target_state = target_state
 
-        ## Stage point to avoid cupboard
-        actions = agent2.move_to_pos([0.25, 0, 1])
-        obs, reward, terminal = task.step(actions)
 
-        ## Stage above object
-        actions = agent2.move_above_object(obj_poses, target_name)
-        obs, reward, terminal = task.step(actions)
+        try:
+            ## Stage point to avoid cupboard
+            actions = agent2.move_to_pos([0.25, 0, 0.99])
+            obs, reward, terminal = task.step(actions)
+    
+            ## Stage above object
+            actions = agent2.move_above_object(obj_poses, target_name)
+            obs, reward, terminal = task.step(actions)
+        except:
+            descriptions, obs = task.reset()
+            continue
 
         best_reward = 0
 
-        # Move above target
+        for i in range(len_episode):
+            # Getting noisy object poses
+            obj_poses = obj_pose_sensor.get_poses()
+    
+            # Getting various fields from obs
+            current_joints = obs.joint_positions
+            gripper_pose = obs.gripper_pose
+            rgb = obs.wrist_rgb
+            depth = obs.wrist_depth
+            mask = obs.wrist_mask
 
-#######        for i in range(len_episode):
-#######            # Getting noisy object poses
-#######            obj_poses = obj_pose_sensor.get_poses()
-#######    
-#######            # Getting various fields from obs
-#######            current_joints = obs.joint_positions
-#######            gripper_pose = obs.gripper_pose
-#######            rgb = obs.wrist_rgb
-#######            depth = obs.wrist_depth
-#######            mask = obs.wrist_mask
-#######            agent.has_object = len(task._robot.gripper._grasped_objects) > 0
-#######    
-#######
-#######            actions = agent.act(obs,obj_poses)
-#######
-#######            try:
-#######                obs, reward, terminal = task.step(actions)
-#######    
-#######                ### Check current distance
-#######                agent.dist_after_action = np.linalg.norm(target_state[:3] - obs.gripper_pose[:3])
-#######    
-#######                ### Calculate reward
-#######                reward, terminal = agent.calculateReward()
-#######
-#######            except:
-#######                reward = -agent.dist_before_action*5
-#######                terminal = False
-#######
-#######            ## Observe results
-#######            agent.agent.observe(terminal=terminal, reward=reward)
-#######            total_reward += reward
-#######
-#######            if terminal: 
-#######                break
-#######
-#######            print('Iteration: %i, Reward: %.1f' %(i, reward))
-#######
-#######        print('Episode: %i, Average Reward: %.1f' %(episode_num,total_reward))
-#######        rews.append(total_reward)
-#######        print('Reset')
+            # Update arm states
+            RLagent.has_object = len(task._robot.gripper._grasped_objects) > 0
+
+            actions = RLagent.act(obs,obj_poses, key=target_name)
+
+            try:
+                obs, reward, terminal = task.step(actions)
+        
+                ### Check current distance
+                RLagent.dist_after_action = max(0.05,np.linalg.norm(target_state[:3] - obs.gripper_pose[:3]))
+        
+                ### Calculate reward
+                reward, terminal = RLagent.calculateReward()
+
+            except:
+                reward = -RLagent.dist_before_action*5
+                terminal = False
+
+            ## Observe results
+            RLagent.agent.observe(terminal=terminal, reward=reward)
+            total_reward += reward
+
+            if terminal: 
+                break
+
+            print('Iteration: %i, Reward: %.1f' %(i, reward))
+
+        print('Episode: %i, Total Reward: %.1f' %(episode_num,total_reward))
+        rews.append(total_reward)
+        print('Reset')
+        if episode_num % save_freq == save_freq - 1: RLagent.agent.save(directory=save_name)
         descriptions, obs = task.reset()
-#######        agent.agent.reset()
-#######
-#######
-#######        if episode_num % save_freq == save_freq - 1: agent.agent.save(directory='dqn_grasp')
+        RLagent.agent.reset()
+
+
         
 
     env.shutdown()
-    agent.agent.close()
+    RLagent.agent.close()
 
 
