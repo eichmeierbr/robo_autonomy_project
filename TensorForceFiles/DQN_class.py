@@ -18,6 +18,7 @@ class TensorForceDQN(TensorForce_Parent):
             states = states_dict,  # alternatively: states, actions, (max_episode_timesteps)
             actions = actions_dict,
             memory=10000,
+            exploration=0.3,
             max_episode_timesteps= self.len_episode,
         )
 

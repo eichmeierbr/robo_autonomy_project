@@ -221,16 +221,32 @@ class AutonAgentAbsolute_Mode:
         obs, reward, terminal = task.step(actions)
 
         ## Grasp Object
+        obj_poses = obj_pose_sensor.get_poses()
         actions = list(obs.gripper_pose)
         actions.append(0)
         obs, reward, terminal = task.step(actions)
 
         # Go to pre-stage location
+        obj_poses = obj_pose_sensor.get_poses()
+        actions = [0.25, 0, 0.99,0,1,0,0,0]
+        actions[:2] = obs.gripper_pose[:2]
+        obs, reward, terminal = task.step(actions)
+
+
+        # Go to pre-stage location
+        obj_poses = obj_pose_sensor.get_poses()
         actions = [0.25, 0, 0.99,0,1,0,0,0]
         actions[:2] = obs.gripper_pose[:2]
         obs, reward, terminal = task.step(actions)
 
         # Go to stage position
+        obj_poses = obj_pose_sensor.get_poses()
+        actions = list(obj_poses['waypoint3'])
+        actions.append(0)
+        obs, reward, terminal = task.step(actions)
+
+        # Go to stage position
+        obj_poses = obj_pose_sensor.get_poses()
         actions = list(obj_poses['waypoint3'])
         actions.append(0)
         obs, reward, terminal = task.step(actions)
