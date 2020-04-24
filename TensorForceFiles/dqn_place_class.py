@@ -89,7 +89,7 @@ class DQN_place(DQN_grasp):
         trans = self.convertTargetCoordsToWorld(trans)
 
         actions[:3] = trans
-        # if self.has_object: actions[-1] = 0
+        if self.has_object: actions[-1] = 0
 
         return actions
     

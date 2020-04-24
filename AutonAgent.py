@@ -254,6 +254,28 @@ class AutonAgentAbsolute_Mode:
     
 
 
+    def graspObjectOnceAbove(self, target_name, task, obj_pose_sensor):
+        ## Stage above object
+        obj_poses = obj_pose_sensor.get_poses()
+
+        actions = self.move_above_object(obj_poses, target_name)
+        actions[3:7] = obj_poses[target_name][3:7]
+        obs, reward, terminal = task.step(actions)
+
+        ## Drop Down To Object
+        obj_poses = obj_pose_sensor.get_poses()
+        des_pos = list(obj_poses[target_name])
+        actions = self.move_to_pos(des_pos)
+        actions[3:7] = obs.gripper_pose[3:7]
+        obs, reward, terminal = task.step(actions)
+
+        ## Grasp Object
+        obj_poses = obj_pose_sensor.get_poses()
+        actions = list(obs.gripper_pose)
+        actions.append(0)
+        obs, reward, terminal = task.step(actions)
+        return obs, True
+
 
     def orientationControl(self, target):
         r = quater.from_float_array(target)
