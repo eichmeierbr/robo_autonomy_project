@@ -59,8 +59,8 @@ class DQN_place(DQN_grasp):
 
         actions = self.agent.act(states=in_states)
 
-        # if self.explore > np.random.uniform():
-            # actions = np.random.uniform(low=0.0, high=1, size=self.num_actions)
+        if self.explore > np.random.uniform():
+            actions = np.random.uniform(low=0.0, high=1, size=self.num_actions)
 
         a_in = self.scaleActions(actions)
         self.gripper_open = a_in[-1]>0.5
@@ -94,13 +94,20 @@ class DQN_place(DQN_grasp):
         return actions
     
 
+    def is_in_cupboard(self):
+        t_pos = self.obj_poses[self.target_name[:-12]]
+        t_pos = self.convertTargetCoordsToCabinet(t_pos)
+        in_cab =            self.x_r[0] - 0.05 <= t_pos[0] <= self.x_r[1] + 0.05
+        in_cab = in_cab and self.y_r[0] - 0.05 <= t_pos[1] <= self.y_r[1] + 0.05
+        in_cab = in_cab and self.z_r[0] - 0.05 <= t_pos[2] <= self.z_r[1] + 0.05
+        return in_cab
+
+
     def calculateReward(self):
         if self.gripper_open:
-            t_pos = self.obj_poses[self.target_name[:-12]]
-            t_pos = self.convertTargetCoordsToCabinet(t_pos)
-            in_cab = self.x_r[0] <= t_pos[0] <= self.x_r[1]
-            in_cab = in_cab and self.y_r[0] <= t_pos[1] <= self.z_r[1]
-            in_cab = in_cab and self.z_r[0] <= t_pos[2] <= self.z_r[1]
+
+            in_cab = self.is_in_cupboard()
+            # in_cab = t_pos[2] > 0.98
             if not in_cab:
                 reward = -1
             else:

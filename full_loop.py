@@ -56,7 +56,8 @@ print(descriptions)
 
 targets = ['crackers_grasp_point', 'mustard_grasp_point', 'coffee_grasp_point', 'sugar_grasp_point','spam_grasp_point', 
             'tuna_grasp_point', 'soup_grasp_point', 'strawberry_jello_grasp_point', 'chocolate_jello_grasp_point']
-episode_num =0
+grasp_episode_num = 0
+place_episode_num = 0
 save_freq = 10
 
 ########### Initialize Environment and Agents Includes ###########################
@@ -74,6 +75,8 @@ def stageGripperAboveTarget():
 
 
 def rlGraspObject(RLagent, obs):
+    global grasp_episode_num
+    grasp_episode_num += 1
     total_reward = 0
     success = False
 
@@ -99,11 +102,12 @@ def rlGraspObject(RLagent, obs):
             RLagent.dist_after_action = max(0.05,np.linalg.norm(target_state[:3] - obs.gripper_pose[:3]))
     
             ### Calculate reward
+            RLagent.has_object = len(task._robot.gripper._grasped_objects) > 0
             reward, terminal = RLagent.calculateReward()
 
         except:
             reward = -RLagent.dist_before_action*5
-            terminal = False
+            success = False
 
         ## Observe results
         RLagent.agent.observe(terminal=terminal, reward=reward)
@@ -115,8 +119,8 @@ def rlGraspObject(RLagent, obs):
 
         print('Iteration: %i, Reward: %.1f' %(i, reward))
 
-    print('Episode: %i, Total Reward: %.1f' %(episode_num,total_reward))
-    # if episode_num % save_freq == save_freq - 1: RLagent.agent.save(directory=grasp_name)
+    print('Grasp Episode: %i, Total Reward: %.1f' %(grasp_episode_num,total_reward))
+    if grasp_episode_num % save_freq == save_freq - 1: RLagent.agent.save(directory=grasp_name)
     RLagent.agent.reset()
     return obs, success
 
@@ -140,7 +144,8 @@ def stageGraspedObject(obs):
 
 def rlPlaceObject(rl_place_agent, obs):
     total_reward = 0
-
+    global place_episode_num
+    place_episode_num += 1
     for i in range(len_episode):
         # Getting noisy object poses
         obj_poses = obj_pose_sensor.get_poses()
@@ -181,6 +186,7 @@ def rlPlaceObject(rl_place_agent, obs):
             rl_place_agent.agent.observe(terminal=terminal, reward=reward)
             total_reward += reward
             if reward == -1: terminal = False
+            print('Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
             break
 
         ## Observe results
@@ -189,12 +195,30 @@ def rlPlaceObject(rl_place_agent, obs):
 
         print('Iteration: %i, Reward: %.1f' %(i, reward))
     
-    print('Episode: %i, Total Reward: %.1f' %(episode_num,total_reward))
+    print('Place Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
+    if place_episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=grasp_name)
     rl_place_agent.agent.reset()
-    return obs, terminal
+
+    # Try to drop the object and see what happens
+    actions = list(obs.gripper_pose) + ([1])
+    obs, reward, terminal = task.step(actions)
+
+    actions = list(obj_poses['waypoint3'])
+    actions.append(1)
+    obs, reward, terminal = task.step(actions)
+    obj_poses = obj_pose_sensor.get_poses()
+    rl_place_agent.obj_poses = obj_poses
+    success = rl_place_agent.is_in_cupboard()
+    return obs, success
 
 
-    # if episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=save_name)
+def check_if_in_cupboard(target_name, obj_poses):
+    t_pos = obj_poses[target_name[:-12]]
+    t_pos = rl_place_agent.convertTargetCoordsToCabinet(t_pos)
+    in_cab =            rl_place_agent.x_r[0] - 0.05 <= t_pos[0] <= rl_place_agent.x_r[1] + 0.05
+    in_cab = in_cab and rl_place_agent.y_r[0] - 0.05 <= t_pos[1] <= rl_place_agent.y_r[1] + 0.05
+    in_cab = in_cab and rl_place_agent.z_r[0] - 0.05 <= t_pos[2] <= rl_place_agent.z_r[1] + 0.05
+    return in_cab
 
 
 def resetTask(task):
@@ -204,7 +228,6 @@ def resetTask(task):
 while True:
     ## Initialize Episode ##
     # Initialize Episode Params
-    episode_num += 1
     total_reward = 0
     # Initialize Target Params
     obj_poses = obj_pose_sensor.get_poses()
@@ -229,16 +252,19 @@ while True:
     ######### Grasp Object #########
     try:
         obj_poses = obj_pose_sensor.get_poses()
-        # obs, success = rlGraspObject(rl_grasp_agent, obs) #### RL Grasp Object #####
-        while not len(task._robot.gripper._grasped_objects) > 0:
-            obs, success = manual_agent.graspObjectOnceAbove(target_name, task,obj_pose_sensor) #### Manual Grasp Object  #####
+        obs, success = rlGraspObject(rl_grasp_agent, obs) #### RL Grasp Object #####
+        # while not len(task._robot.gripper._grasped_objects) > 0:
+            # obs, success = manual_agent.graspObjectOnceAbove(target_name, task,obj_pose_sensor) #### Manual Grasp Object  #####
 
-        manual_agent.has_object = True
-        rl_grasp_agent.has_object = True
-        rl_place_agent.has_object = True
-        success = True
+
         if not success:
             descriptions, obs = resetTask(task)
+            continue
+        else:
+            manual_agent.has_object = True
+            rl_grasp_agent.has_object = True
+            rl_place_agent.has_object = True
+
     except:
         descriptions, obs = resetTask(task)
         continue
@@ -261,6 +287,8 @@ while True:
         ## Need to finish end conditions
         if not success:
             descriptions, obs = resetTask(task)
+            continue
+        print('Woohoo! You successfully placed ' +  target_name[:-12] + ' in the cupboard!!!')
     except:
         descriptions, obs = resetTask(task)
         continue
