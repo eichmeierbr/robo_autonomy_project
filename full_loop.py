@@ -56,8 +56,10 @@ print(descriptions)
 
 targets = ['crackers_grasp_point', 'mustard_grasp_point', 'coffee_grasp_point', 'sugar_grasp_point','spam_grasp_point', 
             'tuna_grasp_point', 'soup_grasp_point', 'strawberry_jello_grasp_point', 'chocolate_jello_grasp_point']
-grasp_episode_num = 0
-place_episode_num = 0
+grasp_episode_num = 1
+place_episode_num = 1
+grasp_success = 0
+place_success = 0
 save_freq = 10
 
 ########### Initialize Environment and Agents Includes ###########################
@@ -196,7 +198,7 @@ def rlPlaceObject(rl_place_agent, obs):
         print('Iteration: %i, Reward: %.1f' %(i, reward))
     
     print('Place Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
-    if place_episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=grasp_name)
+    if place_episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=place_name)
     rl_place_agent.agent.reset()
 
     # Try to drop the object and see what happens
@@ -227,6 +229,10 @@ def resetTask(task):
 
 while True:
     ## Initialize Episode ##
+    # Print Success Info
+    print('Grasp Success: %.2f' %(grasp_success/grasp_episode_num))
+    print('Place Success: %.2f' %(place_success/place_episode_num))
+    print('Total Success: %.2f' %(place_success/grasp_episode_num))
     # Initialize Episode Params
     total_reward = 0
     # Initialize Target Params
@@ -264,6 +270,7 @@ while True:
             manual_agent.has_object = True
             rl_grasp_agent.has_object = True
             rl_place_agent.has_object = True
+            grasp_success += 1
 
     except:
         descriptions, obs = resetTask(task)
@@ -288,6 +295,7 @@ while True:
         if not success:
             descriptions, obs = resetTask(task)
             continue
+        place_success += 1
         print('Woohoo! You successfully placed ' +  target_name[:-12] + ' in the cupboard!!!')
     except:
         descriptions, obs = resetTask(task)
