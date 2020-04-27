@@ -80,11 +80,11 @@ class DQN_grasp_class_2(DQN_grasp):
             reward += min(temp,-0.1)
         
         if self.has_object: 
-            reward += 50
+            reward += 60
             if self.ee_pos[-1] > self.target_start_pose[2] + 0.05:
-                reward += 700
-                terminal = True
-                return reward, terminal
+                reward += 500
+            terminal = True
+            return reward, terminal
 
         if self.target_state[2] < 0.75 + (self.target_start_pose[2] - 0.75)/2:
             reward -= 10
