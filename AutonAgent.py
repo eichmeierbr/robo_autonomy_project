@@ -148,7 +148,7 @@ class AutonAgentAbsolute_Mode:
         return des_pos + des_quat + gripper_pos
 
 
-    def move_above_object(self, obj_poses, key):
+    def move_above_object(self, obj_poses, key, grip_open=True):
         goal_loc = obj_poses[key]
         ####### Position Control #############
         t_pos    = goal_loc[:3]
@@ -161,12 +161,15 @@ class AutonAgentAbsolute_Mode:
         des_quat = list(des_quat)
 
         ####### Gripper Control ############
-        gripper_pos = [1] ### Open: 1, Closed: 0
+        if grip_open:
+            gripper_pos = [1] ### Open: 1, Closed: 0
+        else:
+            gripper_pos = [0]
 
         return des_pos + des_quat + gripper_pos       
 
         
-    def move_to_pos(self, goal_pose):
+    def move_to_pos(self, goal_pose, grip_open=True):
         ####### Position Control #############
         t_pos    = goal_pose[:3]
         des_pos = list(t_pos)
@@ -176,7 +179,10 @@ class AutonAgentAbsolute_Mode:
         des_quat = list(des_quat)
 
         ####### Gripper Control ############
-        gripper_pos = [1] ### Open: 1, Closed: 0
+        if grip_open:
+            gripper_pos = [1] ### Open: 1, Closed: 0
+        else:
+            gripper_pos = [0]
 
         return des_pos + des_quat + gripper_pos   
 
