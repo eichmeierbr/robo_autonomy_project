@@ -20,6 +20,7 @@ class DQN_grasp(TensorForceDQN):
         self.ee_pos = [0,0,0]
         self.explore = 0.5
         self.target_num = 0
+        self.target_name=''
 
         
 

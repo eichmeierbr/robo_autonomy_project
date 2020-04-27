@@ -85,6 +85,11 @@ if __name__ == "__main__":
     len_episode = 10
     save_name = 'dqn_place'
 
+    manual_agent = AutonAgentAbsolute_Mode()
+    rl_place_agent = DQN_place(load = save_name)
+    # rl_place_agent = DQN_place(load = None)
+    rl_place_agent.len_episode = len_episode
+
     obj_pose_sensor = NoisyObjectPoseSensor(env)
     
     descriptions, obs = task.reset()
@@ -107,11 +112,9 @@ if __name__ == "__main__":
         obj_poses = obj_pose_sensor.get_poses()
         target_num =  np.random.randint(0,len(targets)-1)
         target_name = targets[target_num]
-        # rl_grasp_agent.target_num = target_num
+        rl_place_agent.target_num = target_num
+        rl_place_agent.target_name = target_name
         target_state = list(obj_poses[target_name])
-        # rl_grasp_agent.target_start_pose = copy.deepcopy(target_state)
-        # rl_grasp_agent.target_state = target_state
-
 
         try:
             obs = manual_agent.pickup_and_stage_object(target_name, task,obj_pose_sensor)
@@ -121,7 +124,6 @@ if __name__ == "__main__":
 
         best_reward = 0
 
-        target_name = 'waypoint4'
         for i in range(len_episode):
             # Getting noisy object poses
             obj_poses = obj_pose_sensor.get_poses()
@@ -133,44 +135,61 @@ if __name__ == "__main__":
             depth = obs.wrist_depth
             mask = obs.wrist_mask
 
-            # Update arm states
-            rl_grasp_agent.has_object = len(task._robot.gripper._grasped_objects) > 0
 
-            actions = rl_grasp_agent.act(obs,obj_poses, key=target_name)
+            actions = rl_place_agent.act(obs,obj_poses, key=target_name)
 
             try:
                 obs, reward, terminal = task.step(actions)
-        
+                
                 ### Check current distance
-                rl_grasp_agent.dist_after_action = max(0.05,np.linalg.norm(target_state[:3] - obs.gripper_pose[:3]))
+                rl_place_agent.dist_after_action = max(0.05,np.linalg.norm(target_state[:3] - obs.gripper_pose[:3]))
+
+                # Update arm states
+                rl_place_agent.has_object = len(task._robot.gripper._grasped_objects) > 0
         
+                obj_poses = obj_pose_sensor.get_poses()
+                rl_place_agent.obj_poses = obj_poses
                 ### Calculate reward
-                reward, terminal = rl_grasp_agent.calculateReward()
+                reward, terminal = rl_place_agent.calculateReward()
 
             except:
-                reward = -5
+                reward = 0
                 terminal = False
 
-            ## Observe results
-            rl_grasp_agent.agent.observe(terminal=terminal, reward=reward)
-            total_reward += reward
+            if terminal:
+                # Step back to staging point
+                obj_poses = obj_pose_sensor.get_poses()
+                actions = list(obj_poses['waypoint3'])
+                actions.append(obs.gripper_open*1)
+                obs, reward, terminal = task.step(actions)
 
-            if terminal: 
+                # Check where the target dropped
+                obj_poses = obj_pose_sensor.get_poses()
+                rl_place_agent.obj_poses = obj_poses
+
+                # Update Reward
+                reward, terminal = rl_place_agent.calculateReward()
+                rl_place_agent.agent.observe(terminal=terminal, reward=reward)
+                total_reward += reward
                 break
 
-            print('Iteration: %i, Reward: %.1f' %(i, reward))
+            ## Observe results
+            rl_place_agent.agent.observe(terminal=terminal, reward=reward)
+            total_reward += reward
 
+            print('Iteration: %i, Reward: %.1f' %(i, reward))
+        
         print('Episode: %i, Total Reward: %.1f' %(episode_num,total_reward))
         rews.append(total_reward)
         print('Reset')
-        rl_grasp_agent.agent.reset()
+        rl_place_agent.agent.reset()
         descriptions, obs = task.reset()
 
 
-        # if episode_num % save_freq == save_freq - 1: rl_grasp_agent.agent.save(directory=save_name)
+        if episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=save_name)
         
 
+    # rl_place_agent.agent.close()
     env.shutdown()
-    # rl_grasp_agent.agent.close()
 
 
