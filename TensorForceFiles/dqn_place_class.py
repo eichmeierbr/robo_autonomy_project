@@ -104,19 +104,20 @@ class DQN_place(DQN_grasp):
 
 
     def calculateReward(self):
+        reward = 0
         if self.gripper_open:
-
+        
             in_cab = self.is_in_cupboard()
             # in_cab = t_pos[2] > 0.98
             if not in_cab:
                 reward = -1
             else:
-                reward = 5
+                reward = 50
             terminal = True
 
         else:
+            if self.is_in_cupboard(): reward = 1
             terminal = False
-            reward = 0
 
         return reward, terminal
 
