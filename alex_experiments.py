@@ -58,7 +58,79 @@ class NoisyObjectPoseSensor:
             obj_poses[name] = pose
         return obj_poses
 
+def check_if_in_cupboard(target_name, obj_poses):
+    t_pos = obj_poses[target_name[:-12]]
+    t_pos = agent2.convertTargetCoordsToCabinet(t_pos)
+    in_cab =            agent2.x_r[0] - 0.05 <= t_pos[0] <= agent2.x_r[1] + 0.05
+    in_cab = in_cab and agent2.y_r[0] - 0.05 <= t_pos[1] <= agent2.y_r[1] + 0.05
+    in_cab = in_cab and agent2.z_r[0] - 0.05 <= t_pos[2] <= agent2.z_r[1] + 0.05
+    return in_cab
 
+def resetTask(task):
+    obs = task.get_observation()
+    obj_poses = obj_pose_sensor.get_poses()
+    #get items in cupboard
+    in_cupboard = ['sugar']
+    print('started reseting')
+    #for k,v in obj_poses:
+    #    if check_if_in_cupboard(k,obj_poses):
+    #        in_cupboard.append(k)
+    
+    #drop anything in hand
+    agent2.ungrasp_object(obs)
+
+    #move to start position
+    actions = agent2.move_to_pos([0.25, 0, 1])
+    obs, reward, terminal = task.step(actions)
+    print('moved to start')
+
+    for obj in in_cupboard:
+        #move to above object location
+        actions = agent2.move_above_cabinet(obj_poses, obj)
+        obs, reward, terminal = task.step(actions)
+        print('move above cabinet')
+
+        #attempt straight grasp
+        grasped = False
+        actions = agent2.move_to_cabinet_object(obj_poses, obj, False)
+        prev_forces = obs.joint_forces
+        print(np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01)
+        print(not grasped)
+        print(np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50)
+        while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01 and not grasped and np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50:
+            prev_forces = obs.joint_forces
+            print('stepping to target')
+            obs, reward, terminate = task.step(actions)
+
+            for g_obj in task._task.get_graspable_objects():
+                obj_name = g_obj.get_name()
+                
+                if obj_name == obj:
+                    grasped = task._robot.gripper.grasp(g_obj)
+                    print(obj_name, grasped)
+        
+        #if failed kick the object to the back of the line and try another
+        if (not grasped):
+            in_cupboard.append(obj)
+            print('kicking')
+            continue
+
+        #remove from cabinet
+        actions = agent2.move_above_cabinet_num(obs, obj_poses, 5)
+        obs, reward, terminal = task.step(actions)
+        print('moved above cabinet_num')
+
+        #place on table
+        print ('place on table')
+        
+
+
+    
+    
+    descriptions=None
+    #original reset task
+    #descriptions, obs = task.reset()
+    return descriptions, obs
 
 if __name__ == "__main__":
     # action_mode = ActionMode(ArmActionMode.DELTA_EE_POSE_PLAN) # See rlbench/action_modes.py for other action modes
@@ -78,32 +150,32 @@ if __name__ == "__main__":
     
     descriptions, obs = task.reset()
     print(descriptions)
-    agent2 = AutonAgentAbsolute_Mode(obs)
+    agent2 = AutonAgentAbsolute_Mode()
     targets = ['crackers', 'mustard', 'coffee', 'sugar','spam', 'tuna', 'soup', 'strawberry_jello', 'chocolate_jello']
     episode_num =0
     rews = []
     save_freq = 20
-    item=0
+    item='sugar'
     #localize the cupboard
-    obj_poses = obj_pose_sensor.get_poses()
-    actions = agent2.move_above_cabinet(obs, obj_poses, 5)
-    obs, reward, terminal = task.step(actions)
-    print ('moved above cabinet for localization')
-    actions = agent2.move_into_cabinet(obs, obj_poses, 5)
-    obs, reward, terminal = task.step(actions)
-    print ('moved into cabinet for localization')
-    spot=-.1
-    prev_forces = obs.joint_forces
-    while(np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50):
-        prev_forces = obs.joint_forces
-        actions = agent2.move_into_cabinet(obs, obj_poses, item-spot)
-        obs, reward, terminal = task.step(actions)
-        spot+=.005
-    item = item-spot
-    print ('localized cabinet')
-    actions = agent2.move_above_cabinet(obs, obj_poses, item-spot)
-    obs, reward, terminal = task.step(actions)
-    print ('destaging localization')
+    #obj_poses = obj_pose_sensor.get_poses()
+    #actions = agent2.move_above_cabinet(obj_poses, 'waypoint3')
+    #obs, reward, terminal = task.step(actions)
+    #print ('moved above cabinet for localization')
+    #actions = agent2.move_into_cabinet(obs, obj_poses, 5)
+    #obs, reward, terminal = task.step(actions)
+    #print ('moved into cabinet for localization')
+    #spot=-.1
+    #prev_forces = obs.joint_forces
+    #while(np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50):
+    #    prev_forces = obs.joint_forces
+    #    actions = agent2.move_into_cabinet(obs, obj_poses, 5)
+    #    obs, reward, terminal = task.step(actions)
+    #    spot+=.005
+    
+    #print ('localized cabinet')
+    #actions = agent2.move_above_cabinet(obj_poses, item)
+    #obs, reward, terminal = task.step(actions)
+    #print ('destaging localization')
 
 
     while True:
@@ -115,14 +187,14 @@ if __name__ == "__main__":
         target_state = list(obj_poses[target_name])
 
         ## Stage point to avoid cupboard
-        actions = agent2.move_to_pos(obs, [0.25, 0, 1])
+        actions = agent2.move_to_pos([0.25, 0, 1])
         obs, reward, terminal = task.step(actions)
         print ('moved to start')
         
         depth = 0
         while(obs.joint_forces[1]  >= -10):
             ## Stage above object
-            actions = agent2.move_above_object(obj_poses, target_name,depth)
+            actions = agent2.move_above_object_dep(obj_poses, item, depth)
             obs, reward, terminal = task.step(actions)
             depth += .01
         print ('moved above object')
@@ -131,11 +203,11 @@ if __name__ == "__main__":
         obs, reward, terminal = task.step(actions)
         print ('grasp object')
 
-        actions = agent2.move_above_cabinet(obs, obj_poses, item)
+        actions = agent2.move_above_cabinet_num(obs, obj_poses, 5)
         obs, reward, terminal = task.step(actions)
         print ('moved above cabinet')
 
-        actions = agent2.move_into_cabinet(obs, obj_poses, item)
+        actions = agent2.move_into_cabinet(obs, obj_poses, 5)
         obs, reward, terminal = task.step(actions)
         print ('moved into cabinet')
 
@@ -143,20 +215,21 @@ if __name__ == "__main__":
         obs, reward, terminal = task.step(actions)
         print ('ungrasp object')
 
-        actions = agent2.move_above_cabinet(obs, obj_poses, 1)
+        actions = agent2.move_above_cabinet_num(obs, obj_poses, 5)
         obs, reward, terminal = task.step(actions)
-        print ('moved above cabinet')
+        print ('moved above cabinet num')
         
-        actions = agent2.move_to_pos(obs, [0.25, 0, 1])
+        actions = agent2.move_to_pos([0.25, 0, 1])
         obs, reward, terminal = task.step(actions)
         print ('moved to start')
-        item+=1
 
-        actions = agent2.move_above_cabinet(obs, obj_poses, 1)
+        actions = agent2.move_above_cabinet_num(obs, obj_poses, 1)
         obs, reward, terminal = task.step(actions)
-        print ('moved above cabinet')
+        print ('moved above cabinet num')
 
-        condition = True
+        resetTask(task)
+
+        condition = False
         if(condition):
             sweep = 11.5-item+episode_num
             actions = agent2.move_above_cabinet(obs, obj_poses, sweep)

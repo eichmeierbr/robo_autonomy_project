@@ -224,7 +224,62 @@ def check_if_in_cupboard(target_name, obj_poses):
 
 
 def resetTask(task):
-    descriptions, obs = task.reset()
+    obs = task.get_observation()
+    obj_poses = obj_pose_sensor.get_poses()
+    #get items in cupboard
+    in_cupboard = ['sugar']
+    print('started reseting')
+    #for k,v in obj_poses:
+    #    if check_if_in_cupboard(k,obj_poses):
+    #        in_cupboard.append(k)
+    
+    #drop anything in hand
+    manual_agent.ungrasp_object(obs)
+
+    #move to start position
+    actions = manual_agent.move_to_pos([0.25, 0, 1])
+    obs, reward, terminal = task.step(actions)
+    print('moved to start')
+
+    for obj in in_cupboard:
+        #move to above object location
+        actions = manual_agent.move_above_cabinet(obj_poses, obj)
+        obs, reward, terminal = task.step(actions)
+        print('move above cabinet')
+
+        #attempt straight grasp
+        grasped = False
+        actions = manual_agent.move_to_cabinet_object(obj_poses, obj, False)
+        prev_forces = obs.joint_forces
+        while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01 and not grasped and np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50:
+            prev_forces = obs.joint_forces
+            print('stepping to target')
+            obs, reward, terminate = task.step(actions)
+
+            for g_obj in task._task.get_graspable_objects():
+                obj_name = g_obj.get_name()
+                
+                if obj_name == obj:
+                    grasped = task._robot.gripper.grasp(g_obj)
+                    print(obj_name, grasped)
+        
+        #if failed kick the object to the back of the line and try another
+        if (not grasped):
+            in_cupboard.append(obj)
+            print('kicking')
+            continue
+
+        #remove from cabinet
+        actions = manual_agent.move_above_cabinet_num(obs, obj_poses, 5)
+        obs, reward, terminal = task.step(actions)
+        print('moved above cabinet_num')
+
+        #place on table
+        print ('place on table')
+    
+    descriptions=None
+    #original reset task
+    #descriptions, obs = task.reset()
     return descriptions, obs
 
 while True:
