@@ -46,15 +46,15 @@ if __name__ == "__main__":
     len_episode = 10
     save_name = 'dqn_grasp_2'
 
-    agent2 = AutonAgentAbsolute_Mode()
-    RLagent = DQN_grasp_class_2(load = save_name)
-    # agent = TensorForceClass(load='dqn_grasp')
-
     RLagent.len_episode = len_episode
     obj_pose_sensor = NoisyObjectPoseSensor(env)
     
     descriptions, obs = task.reset()
     print(descriptions)
+
+    agent2 = AutonAgentAbsolute_Mode(obs)
+    RLagent = DQN_grasp_class_2(load = save_name)
+    # agent = TensorForceClass(load='dqn_grasp')
 
     targets = ['crackers_grasp_point', 'mustard_grasp_point', 'coffee_grasp_point', 'sugar_grasp_point','spam_grasp_point', 
                 'tuna_grasp_point', 'soup_grasp_point', 'strawberry_jello_grasp_point', 'chocolate_jello_grasp_point']
@@ -75,11 +75,11 @@ if __name__ == "__main__":
 
         try:
             ## Stage point to avoid cupboard
-            actions = agent2.move_to_pos([0.25, 0, 0.99])
+            actions = agent2.move_to_pos(obs, [0.25, 0, 0.99])
             obs, reward, terminal = task.step(actions)
     
             ## Stage above object
-            actions = agent2.move_above_object(obj_poses, target_name)
+            actions = agent2.move_above_object(obj_poses, target_name, 0)
             obs, reward, terminal = task.step(actions)
         except:
             descriptions, obs = task.reset()
