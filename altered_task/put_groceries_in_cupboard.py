@@ -31,6 +31,7 @@ class PutGroceriesInCupboard(Task):
         self.register_graspable_objects(self.groceries)
         self.boundary = SpawnBoundary([Shape('workspace')])
         self.fence = Shape('fence')
+        self.worksurface = Shape('worksurface')
 
     def init_episode(self, index: int) -> List[str]:
         self.boundary.clear()
