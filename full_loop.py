@@ -164,6 +164,8 @@ def rlPlaceObject(rl_place_agent, obs):
             rl_place_agent.has_object = len(task._robot.gripper._grasped_objects) > 0
     
             obj_poses = obj_pose_sensor.get_poses()
+            rl_place_agent.gripper_pose = obs.gripper_pose
+
             rl_place_agent.obj_poses = obj_poses
             ### Calculate reward
             reward, terminal = rl_place_agent.calculateReward()
@@ -182,6 +184,7 @@ def rlPlaceObject(rl_place_agent, obs):
             # Check where the target dropped
             obj_poses = obj_pose_sensor.get_poses()
             rl_place_agent.obj_poses = obj_poses
+            rl_place_agent.gripper_pose = obs.gripper_pose
 
             # Update Reward
             reward, terminal = rl_place_agent.calculateReward()
