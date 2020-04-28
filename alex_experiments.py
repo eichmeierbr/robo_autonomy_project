@@ -3,7 +3,9 @@ import scipy as sp
 from quaternion import from_rotation_matrix, quaternion, as_euler_angles, from_euler_angles, as_quat_array
 from scipy.spatial.transform import Rotation as R
 from matplotlib import pyplot as plt
+from pyrep.objects.object import Object
 
+from pyrep.errors import ConfigurationPathError
 from rlbench.environment import Environment
 from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
@@ -58,26 +60,32 @@ class NoisyObjectPoseSensor:
             obj_poses[name] = pose
         return obj_poses
 
-def check_if_in_cupboard(target_name, obj_poses):
-    t_pos = obj_poses[target_name[:-12]]
-    t_pos = agent2.convertTargetCoordsToCabinet(t_pos)
-    in_cab =            agent2.x_r[0] - 0.05 <= t_pos[0] <= agent2.x_r[1] + 0.05
-    in_cab = in_cab and agent2.y_r[0] - 0.05 <= t_pos[1] <= agent2.y_r[1] + 0.05
-    in_cab = in_cab and agent2.z_r[0] - 0.05 <= t_pos[2] <= agent2.z_r[1] + 0.05
-    return in_cab
+def sample_reset_pos(area: Object):
+    minx, maxx, miny, maxy, _, _ = area.get_bounding_box()
+    pose = area.get_pose()
+    print('Surface pose: ', pose)
+
+    x = np.random.uniform(minx, maxx) + pose[0]
+    y = np.random.uniform(miny, maxy) + pose[1]
+    z = pose[2] + 0.05
+
+    return x, y, z
 
 def resetTask(task):
     obs = task.get_observation()
     obj_poses = obj_pose_sensor.get_poses()
+    surface = Object.get_object('worksurface')
     #get items in cupboard
     in_cupboard = ['sugar']
     print('started reseting')
+    print(obj_poses)
     #for k,v in obj_poses:
     #    if check_if_in_cupboard(k,obj_poses):
     #        in_cupboard.append(k)
     
     #drop anything in hand
-    agent2.ungrasp_object(obs)
+    actions = agent2.ungrasp_object(obs)
+    obs, reward, terminal = task.step(actions)
 
     #move to start position
     actions = agent2.move_to_pos([0.25, 0, 1])
@@ -89,25 +97,18 @@ def resetTask(task):
         actions = agent2.move_above_cabinet(obj_poses, obj)
         obs, reward, terminal = task.step(actions)
         print('move above cabinet')
-
+        target_obj = Object.get_object(obj)
         #attempt straight grasp
         grasped = False
         actions = agent2.move_to_cabinet_object(obj_poses, obj, False)
         prev_forces = obs.joint_forces
-        print(np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01)
-        print(not grasped)
-        print(np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50)
         while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01 and not grasped and np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50:
             prev_forces = obs.joint_forces
             print('stepping to target')
             obs, reward, terminate = task.step(actions)
 
-            for g_obj in task._task.get_graspable_objects():
-                obj_name = g_obj.get_name()
-                
-                if obj_name == obj:
-                    grasped = task._robot.gripper.grasp(g_obj)
-                    print(obj_name, grasped)
+            grasped = task._robot.gripper.grasp(target_obj)
+            print(obj, grasped)
         
         #if failed kick the object to the back of the line and try another
         if (not grasped):
@@ -122,9 +123,41 @@ def resetTask(task):
 
         #place on table
         print ('place on table')
+        # Go to post-grasp location
+        actions = [0.25, 0, 0.99, 0, 1, 0, 0, 0]
+        while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01:
+            print('stepping to post-grasp staging')
+            obs, reward, terminate = task.step(actions)
+        print('moved to post-grasp location', actions, obs.gripper_pose)
+
+        while grasped:
+            reset_x, reset_y, reset_z = sample_reset_pos(surface)
+
+            print('Randomly chosen reset location: ', reset_x, ', ', reset_y)
+
+            _, _, _, _, target_zmin, target_zmax = target_obj.get_bounding_box()
+            actions = [reset_x, reset_y, target_zmax - target_zmin + reset_z, 0, 1, 0, 0, 0]
+            print('Reset location actions: ', actions)
+            try:
+                while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01:
+                    print('stepping to reset location')
+                    obs, reward, terminate = task.step(actions)
+            except ConfigurationPathError:
+                print('Bad choice! Pick again.')
+                continue
+            print('moved to reset location', actions, obs.gripper_pose)
+            task._robot.gripper.release()
+            grasped = False
         
+    #open hand
+    actions = agent2.ungrasp_object(obs)
+    obs, reward, terminal = task.step(actions)
 
 
+    #move to start position
+    actions = agent2.move_to_pos([0.25, 0, 1])
+    obs, reward, terminal = task.step(actions)
+    print('finished resetting')
     
     
     descriptions=None
