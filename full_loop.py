@@ -233,6 +233,9 @@ def check_if_in_cupboard(target_name, obj_poses, need_trim=True):
     in_cab = in_cab and rl_place_agent.z_r[0] - 0.05 <= t_pos[2]
     return in_cab
 
+def check_if_in_cupboard_manual(obj_name,obj_poses):
+    return (obj_poses[obj_name][2]>1)
+
 def sample_reset_pos(area: Object):
     minx, maxx, miny, maxy, _, _ = area.get_bounding_box()
     pose = area.get_pose()
@@ -253,7 +256,7 @@ def resetTask(task):
     in_cupboard = []
     print('started reseting')
     for k in ['crackers', 'mustard', 'coffee', 'sugar','spam', 'tuna', 'soup', 'strawberry_jello', 'chocolate_jello']:
-        if check_if_in_cupboard(k,obj_poses):
+        if check_if_in_cupboard_manual(k,obj_poses):
             in_cupboard.append(k)
     
     #drop anything in hand
@@ -338,7 +341,7 @@ def resetTask(task):
         in_cupboard.clear()
         obj_poses = obj_pose_sensor.get_poses()
         for k in ['crackers', 'mustard', 'coffee', 'sugar','spam', 'tuna', 'soup', 'strawberry_jello', 'chocolate_jello']:
-            if check_if_in_cupboard(k,obj_poses):
+            if check_if_in_cupboard_manual(k,obj_poses):
                 in_cupboard.append(k)
         
     #open hand
