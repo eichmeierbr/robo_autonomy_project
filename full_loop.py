@@ -247,49 +247,40 @@ def sample_reset_pos(area: Object):
 def resetTask(task):
     obs = task.get_observation()
     obj_poses = obj_pose_sensor.get_poses()
-    rl_place_agent.obj_poses = obj_poses
     surface = Object.get_object('worksurface')
-
-    #drop anything in hand
-    obj_poses = obj_pose_sensor.get_poses()
-    actions = list(obj_poses['waypoint3']) + [0]
-    obs, reward, terminal = task.step(actions)
-    actions = manual_agent.ungrasp_object(obs)
-    obs, reward, terminal = task.step(actions)
-    obj_poses = obj_pose_sensor.get_poses()
-    obs, reward, terminal = task.step(actions)
-    obj_poses = obj_pose_sensor.get_poses()
-    
-
     #get items in cupboard
+
     in_cupboard = []
     print('started reseting')
-    for k in targets_grab:
-        if check_if_in_cupboard(k,obj_poses, need_trim=False):
+    for k in ['crackers', 'mustard', 'coffee', 'sugar','spam', 'tuna', 'soup', 'strawberry_jello', 'chocolate_jello']:
+        if check_if_in_cupboard(k,obj_poses):
             in_cupboard.append(k)
+    
+    #drop anything in hand
+    actions = manual_agent.ungrasp_object(obs)
+    obs, reward, terminal = task.step(actions)
 
     #move to start position
-    actions = manual_agent.move_to_pos([0.25, 0, 1])
+    actions = manual_agent.move_to_pos([0.25, 0, 1], False)
     obs, reward, terminal = task.step(actions)
     print('moved to start')
 
-
-    graspables = task._task.get_graspable_objects()
-    for obj in in_cupboard:
+    while len(in_cupboard)>0:
         #move to above object location
-        actions = manual_agent.move_above_cabinet(obj_poses, obj)
-        obs, reward, terminal = task.step(actions)
-        actions = manual_agent.move_above_cabinet(obj_poses, obj)
+        if(len(in_cupboard)>1):
+            random = np.random.randint(len(in_cupboard)-1)
+            print(random)
+            obj = in_cupboard[random]
+        else:
+            obj = in_cupboard[0]
+        actions = manual_agent.move_above_cabinet(obj_poses, obj, False)
         obs, reward, terminal = task.step(actions)
         print('move above cabinet')
         target_obj = Object.get_object(obj)
-        if not target_obj in graspables: continue
         #attempt straight grasp
         grasped = False
         actions = manual_agent.move_to_cabinet_object(obj_poses, obj, False)
         prev_forces = obs.joint_forces
-
-        attempts = 0
         while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01 and not grasped and np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50:
             prev_forces = obs.joint_forces
             print('stepping to target')
@@ -297,32 +288,27 @@ def resetTask(task):
 
             grasped = task._robot.gripper.grasp(target_obj)
             print(obj, grasped)
-
-            attempts +=1
-            if attempts > 20:
-                actions = manual_agent.move_above_cabinet(obj_poses, obj)
-                obs, reward, terminal = task.step(actions)
-                attempts = 0
-                obj_poses = obj_pose_sensor.get_poses()
-                actions = list(obj_poses['waypoint3']) + [0]
-                obs, reward, terminal = task.step(actions)
         
         #if failed kick the object to the back of the line and try another
-        if (not grasped):
-            in_cupboard.append(obj)
-            print('kicking')
-            continue
+        #if (not grasped):
+        #    in_cupboard.append(obj)
+        #    print('kicking')
+        #    continue
 
         #remove from cabinet
         actions = manual_agent.move_above_cabinet_num(obs, obj_poses, 5)
         obs, reward, terminal = task.step(actions)
         print('moved above cabinet_num')
+        
 
         #place on table
         print ('place on table')
         # Go to post-grasp location
+        
         actions = [0.25, 0, 0.99, 0, 1, 0, 0, 0]
-        while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01:
+        prev_forces = obs.joint_forces
+        while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01 and (np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50):
+            prev_forces = obs.joint_forces
             print('stepping to post-grasp staging')
             obs, reward, terminate = task.step(actions)
         print('moved to post-grasp location', actions, obs.gripper_pose)
@@ -336,7 +322,9 @@ def resetTask(task):
             actions = [reset_x, reset_y, target_zmax - target_zmin + reset_z, 0, 1, 0, 0, 0]
             print('Reset location actions: ', actions)
             try:
-                while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01:
+                prev_forces = obs.joint_forces
+                while np.linalg.norm(obs.gripper_pose - actions[:-1]) > 0.01 and (np.sum(np.abs(obs.joint_forces-prev_forces)) <= 50):
+                    prev_forces = obs.joint_forces
                     print('stepping to reset location')
                     obs, reward, terminate = task.step(actions)
             except ConfigurationPathError:
@@ -345,6 +333,13 @@ def resetTask(task):
             print('moved to reset location', actions, obs.gripper_pose)
             task._robot.gripper.release()
             grasped = False
+        
+        print('nextobject')
+        in_cupboard.clear()
+        obj_poses = obj_pose_sensor.get_poses()
+        for k in ['crackers', 'mustard', 'coffee', 'sugar','spam', 'tuna', 'soup', 'strawberry_jello', 'chocolate_jello']:
+            if check_if_in_cupboard(k,obj_poses):
+                in_cupboard.append(k)
         
     #open hand
     actions = manual_agent.ungrasp_object(obs)
