@@ -22,6 +22,7 @@ class DQN_place(DQN_grasp):
         self.explore = 0.5
         self.stage_point = []
         self.obj_poses = []
+        self.gripper_pose = []
 
     def createRLagent(self, load):
         states_dict = {'type': 'float', 'shape': self.num_states}
@@ -94,12 +95,19 @@ class DQN_place(DQN_grasp):
         return actions
     
 
-    def is_in_cupboard(self):
-        t_pos = self.obj_poses[self.target_name[:-12]]
-        t_pos = self.convertTargetCoordsToCabinet(t_pos)
-        in_cab =            self.x_r[0] - 0.05 <= t_pos[0] <= self.x_r[1] + 0.05
-        in_cab = in_cab and self.y_r[0] - 0.05 <= t_pos[1] <= self.y_r[1] + 0.05
-        in_cab = in_cab and self.z_r[0] - 0.05 <= t_pos[2] <= self.z_r[1] + 0.05
+    def is_in_cupboard(self, is_gripper=False):
+        if is_gripper: 
+            t_pos = self.gripper_pose
+            t_pos = self.convertTargetCoordsToCabinet(t_pos)
+            in_cab = t_pos[0] <= self.x_r[1] + 0.05
+            in_cab = in_cab and self.y_r[0] - 0.05 <= t_pos[1] <= self.y_r[1] + 0.05
+            in_cab = in_cab and self.z_r[0] - 0.05 <= t_pos[2]
+        else: 
+            t_pos = self.obj_poses[self.target_name[:-12]]
+            t_pos = self.convertTargetCoordsToCabinet(t_pos)
+            in_cab = t_pos[0] <= self.x_r[1] + 0.05
+            in_cab = in_cab and self.y_r[0] - 0.05 <= t_pos[1] <= self.y_r[1] + 0.05
+            in_cab = in_cab and self.z_r[0] - 0.05 <= t_pos[2]
         return in_cab
 
 
@@ -116,7 +124,7 @@ class DQN_place(DQN_grasp):
             terminal = True
 
         else:
-            if self.is_in_cupboard(): reward = 1
+            if self.is_in_cupboard(is_gripper=True): reward = 1
             terminal = False
 
         return reward, terminal

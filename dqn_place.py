@@ -149,6 +149,8 @@ if __name__ == "__main__":
         
                 obj_poses = obj_pose_sensor.get_poses()
                 rl_place_agent.obj_poses = obj_poses
+                rl_place_agent.gripper_pose = obs.gripper_pose
+
                 ### Calculate reward
                 reward, terminal = rl_place_agent.calculateReward()
 
@@ -166,6 +168,7 @@ if __name__ == "__main__":
                 # Check where the target dropped
                 obj_poses = obj_pose_sensor.get_poses()
                 rl_place_agent.obj_poses = obj_poses
+                rl_place_agent.gripper_pose = obs.gripper_pose
 
                 # Update Reward
                 reward, terminal = rl_place_agent.calculateReward()
