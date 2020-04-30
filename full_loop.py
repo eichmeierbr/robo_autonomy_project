@@ -124,9 +124,9 @@ def rlGraspObject(RLagent, obs):
             success = True
             break
 
-        # print('Iteration: %i, Reward: %.1f' %(i, reward))
+        print('Iteration: %i, Reward: %.1f' %(i, reward))
 
-    # print('Grasp Episode: %i, Total Reward: %.1f' %(grasp_episode_num,total_reward))
+    print('Grasp Episode: %i, Total Reward: %.1f' %(grasp_episode_num,total_reward))
     if grasp_episode_num % save_freq == save_freq - 1: RLagent.agent.save(directory=grasp_name)
     RLagent.agent.reset()
     return obs, success
@@ -181,11 +181,11 @@ def rlPlaceObject(rl_place_agent, obs):
 
         if terminal:
             # Step back to staging point
-            while np.linalg.norm(obs.gripper_pose[:3] - obj_poses['waypoint3'][:3] > 0.03):
-                obj_poses = obj_pose_sensor.get_poses()
-                actions = list(obj_poses['waypoint3'])
-                actions.append(1)
-                obs, reward, terminal = task.step(actions)
+            # while np.linalg.norm(obs.gripper_pose[:3] - obj_poses['waypoint3'][:3] > 0.03):
+            obj_poses = obj_pose_sensor.get_poses()
+            actions = list(obj_poses['waypoint3'])
+            actions.append(1)
+            obs, reward, terminal = task.step(actions)
 
             # Check where the target dropped
             obj_poses = obj_pose_sensor.get_poses()
@@ -197,16 +197,16 @@ def rlPlaceObject(rl_place_agent, obs):
             rl_place_agent.agent.observe(terminal=terminal, reward=reward)
             total_reward += reward
             if reward == -1: terminal = False
-            # print('Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
+            print('Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
             break
 
         ## Observe results
         rl_place_agent.agent.observe(terminal=terminal, reward=reward)
         total_reward += reward
 
-        # print('Iteration: %i, Reward: %.1f' %(i, reward))
+        print('Iteration: %i, Reward: %.1f' %(i, reward))
     
-    # print('Place Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
+    print('Place Episode: %i, Total Reward: %.1f' %(place_episode_num,total_reward))
     if place_episode_num % save_freq == save_freq - 1: rl_place_agent.agent.save(directory=place_name)
     rl_place_agent.agent.reset()
 
@@ -245,6 +245,8 @@ def sample_reset_pos(area: Object):
     return x, y, z
 
 def resetTask(task):
+    descriptions, obs = task.reset()
+    return descriptions, obs
     obs = task.get_observation()
     obj_poses = obj_pose_sensor.get_poses()
     rl_place_agent.obj_poses = obj_poses
@@ -252,7 +254,7 @@ def resetTask(task):
 
     #drop anything in hand
     obj_poses = obj_pose_sensor.get_poses()
-    actions = list(obj_poses['waypoint3']) + [0]
+    actions = list(obj_poses['waypoint3']) + [1]
     obs, reward, terminal = task.step(actions)
     actions = manual_agent.ungrasp_object(obs)
     obs, reward, terminal = task.step(actions)
@@ -274,7 +276,7 @@ def resetTask(task):
     print('moved to start')
 
 
-    graspables = task._task.get_graspable_objects()
+    # graspables = task._task.get_graspable_objects()
     for obj in in_cupboard:
         #move to above object location
         actions = manual_agent.move_above_cabinet(obj_poses, obj)
@@ -283,10 +285,11 @@ def resetTask(task):
         obs, reward, terminal = task.step(actions)
         print('move above cabinet')
         target_obj = Object.get_object(obj)
-        if not target_obj in graspables: continue
+        # if not target_obj in graspables: continue
         #attempt straight grasp
         grasped = False
         actions = manual_agent.move_to_cabinet_object(obj_poses, obj, False)
+        actions[2]+=0.03
         prev_forces = obs.joint_forces
 
         attempts = 0
@@ -294,14 +297,13 @@ def resetTask(task):
             prev_forces = obs.joint_forces
             print('stepping to target')
             obs, reward, terminate = task.step(actions)
-
             grasped = task._robot.gripper.grasp(target_obj)
             print(obj, grasped)
 
             attempts +=1
             if attempts > 20:
-                actions = manual_agent.move_above_cabinet(obj_poses, obj)
-                obs, reward, terminal = task.step(actions)
+                # actions = manual_agent.move_above_cabinet(obj_poses, obj)
+                # obs, reward, terminal = task.step(actions)
                 attempts = 0
                 obj_poses = obj_pose_sensor.get_poses()
                 actions = list(obj_poses['waypoint3']) + [0]

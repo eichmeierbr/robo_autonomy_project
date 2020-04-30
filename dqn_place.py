@@ -95,7 +95,7 @@ if __name__ == "__main__":
     descriptions, obs = task.reset()
     print(descriptions)
 
-    manual_agent = AutonAgentAbsolute_Mode(obs)
+    manual_agent = AutonAgentAbsolute_Mode()
         # rl_grasp_agent = DQN_place(load = save_name)
         # rl_grasp_agent = DQN_place(load = None)
         # rl_grasp_agent.len_episode = len_episode

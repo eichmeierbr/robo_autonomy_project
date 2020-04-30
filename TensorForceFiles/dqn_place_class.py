@@ -124,7 +124,6 @@ class DQN_place(DQN_grasp):
             terminal = True
 
         else:
-            if self.is_in_cupboard(is_gripper=True): reward = 1
             terminal = False
 
         return reward, terminal
