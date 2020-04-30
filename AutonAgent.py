@@ -243,7 +243,8 @@ class AutonAgentAbsolute_Mode:
         goal_loc = obj_poses[object_name].copy()
         ####### Position Control #############
         t_pos   = goal_loc[:3]                                                                      #v [down-up,left-right,in-out)]
-        t_pos   = t_pos + quater.as_rotation_matrix(quater.from_float_array(waypoint[3:]))@np.array([0,0,(goal_loc[2]-waypoint[2])*2])
+        t_pos   = t_pos + quater.as_rotation_matrix(quater.from_float_array(waypoint[3:]))@np.array([0,0,(goal_loc[2]-waypoint[2])*3])
+        t_pos = waypoint[:3]
         des_pos = list(t_pos)
 
         ######## Orientation Control ##########
@@ -303,10 +304,10 @@ class AutonAgentAbsolute_Mode:
         goal_loc = obj_poses['waypoint4'].copy()
         ####### Position Control #############
         t_pos    = goal_loc[:3]
-        spot = -.11+.02*object_number
+        spot = -.11+.05*object_number
         if (spot>.12):
-            spot = -.11+.02*(object_number-10)
-        t_pos   = t_pos + quater.as_rotation_matrix(quater.from_float_array(goal_loc[3:]))@np.array([0,spot,0])
+            spot = -.11+.05*(object_number-4)
+        t_pos   = t_pos + quater.as_rotation_matrix(quater.from_float_array(goal_loc[3:]))@np.array([-spot/1.5,spot,.01])
         des_pos = list(t_pos)
         ######## Orientation Control ##########
         des_quat = goal_loc[3:]
